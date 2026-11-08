@@ -151,7 +151,7 @@ public sealed class UsageService : IDisposable
                 var now = _time.GetUtcNow();
                 var cfg = _config.Current;
 
-                if (cfg.Api.Enabled && now >= _nextApi)
+                if (cfg.Display.BottomRightKey == BottomRightKeys.Api && now >= _nextApi)
                 {
                     _nextApi = now + TimeSpan.FromMinutes(Math.Max(1, cfg.Api.PollMinutes));
                     await RefreshApiAsync(cfg, now, ct).ConfigureAwait(false);

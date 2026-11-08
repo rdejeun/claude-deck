@@ -137,6 +137,7 @@ static class Gallery
             ("19-api-unconfigured", b.Api(new(false, null, null, null, null, null), 5m, now)),
             ("20-api-error", b.Api(new(true, 12.5m, 1m, null, now, "clé refusée"), 5m, now)),
             ("21-test-pattern", ClaudeDeck.Core.Rendering.KeyViewBuilder.TestPattern(0)),
+            ("22-logo", ClaudeDeck.Core.Rendering.KeyViewBuilder.Logo(null)),
         };
         foreach (var (name, view) in views)
             File.WriteAllBytes(Path.Combine(dir, name + ".png"), ClaudeDeck.Core.Rendering.KeyRenderer.ToPng(r.Render(view)));

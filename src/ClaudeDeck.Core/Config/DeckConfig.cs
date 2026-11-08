@@ -37,6 +37,21 @@ public sealed class DisplayConfig
     public int DoneFadeMinutes { get; set; } = 30;
     /// <summary>Images par seconde pour les animations (clignotement, activité).</summary>
     public int AnimationFps { get; set; } = 4;
+
+    /// <summary>
+    /// Contenu de la touche en bas à droite : <c>logo</c> (défaut) ou <c>api</c> (dépense via l'Admin API, qui exige
+    /// un compte d'organisation Console).
+    /// </summary>
+    public string BottomRightKey { get; set; } = BottomRightKeys.Logo;
+
+    /// <summary>Image personnelle (PNG, JPG…) affichée par la touche logo à la place du motif par défaut. Null = motif.</summary>
+    public string? LogoImagePath { get; set; }
+}
+
+public static class BottomRightKeys
+{
+    public const string Logo = "logo";
+    public const string Api = "api";
 }
 
 public sealed class DeviceConfig
@@ -75,7 +90,6 @@ public sealed class PlanUsageConfig
 
 public sealed class ApiConfig
 {
-    public bool Enabled { get; set; } = true;
     public int PollMinutes { get; set; } = 15;
     /// <summary>Solde saisi par l'utilisateur (USD), ou null.</summary>
     public decimal? BalanceUsd { get; set; }

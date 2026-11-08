@@ -89,7 +89,8 @@ puis activité récente ; affectations collantes ; « +N » (orange si une sessi
 |---|---|---|
 | Session 5 h | status line `rate_limits.five_hour` ; option : `GET https://api.anthropic.com/api/oauth/usage` (non documenté) | à chaque status line ; OAuth toutes les 5 min si aucune donnée fraîche |
 | Semaine | idem, `seven_day` | idem |
-| API 7 j | `GET /v1/organizations/cost_report?bucket_width=1d` (clé Admin, montants en cents) | 15 min, ou appui |
+| Bas à droite : logo (défaut) | Motif vectoriel, ou image de l'utilisateur (`display.logoImagePath`) | — |
+| Bas à droite : API 7 j (option `display.bottomRightKey = "api"`) | `GET /v1/organizations/cost_report?bucket_width=1d` (clé Admin ou clé personnelle sans espace de travail ; compte d'organisation requis ; montants en cents) | 15 min, ou appui |
 
 Seuils de couleur : vert < 50 %, ambre < 80 %, rouge ≥ 80 %. Donnée de plus de 30 min : grisée et préfixée `~`.
 Fenêtre dont `resets_at` est passé : « réinitialisé ».

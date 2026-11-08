@@ -31,6 +31,8 @@ public sealed class KeyRenderer : IDisposable
 
     public KeyImage Render(KeyView v)
     {
+        if (v.Image is { } custom && custom.Size == _size) return custom;
+
         var info = new SKImageInfo(_size, _size, SKColorType.Rgba8888, SKAlphaType.Premul);
         using var bitmap = new SKBitmap(info);
         using (var canvas = new SKCanvas(bitmap))
@@ -41,6 +43,7 @@ public sealed class KeyRenderer : IDisposable
             canvas.Clear(ToSk(v.Background));
 
             if (v.TestPatternIndex is { } idx) DrawTestPattern(canvas, v, idx);
+            else if (v.Icon == KeyIcon.Spark) DrawSpark(canvas, 40f, 40f, 27f, v.Accent);
             else if (v.Bar is not null) DrawGaugeLayout(canvas, v);
             else DrawIconLayout(canvas, v);
 
@@ -123,6 +126,25 @@ public sealed class KeyRenderer : IDisposable
     }
 
     // ───────────── Icônes vectorielles ─────────────
+
+    /// <summary>Étoile rayonnante : rayons arrondis de longueurs alternées autour d'un centre.</summary>
+    private static void DrawSpark(SKCanvas c, float cx, float cy, float r, Rgb color)
+    {
+        using var p = new SKPaint
+        {
+            Color = ToSk(color), IsAntialias = true, Style = SKPaintStyle.Stroke,
+            StrokeWidth = 6.2f, StrokeCap = SKStrokeCap.Round,
+        };
+        const int rays = 12;
+        for (var i = 0; i < rays; i++)
+        {
+            var angle = (i * 360f / rays - 90f) * MathF.PI / 180f;
+            var len = i % 2 == 0 ? r : r * 0.72f;
+            var inner = r * 0.16f;
+            c.DrawLine(cx + MathF.Cos(angle) * inner, cy + MathF.Sin(angle) * inner,
+                       cx + MathF.Cos(angle) * len, cy + MathF.Sin(angle) * len, p);
+        }
+    }
 
     private static void DrawIcon(SKCanvas c, KeyIcon icon, float cx, float cy, float r, Rgb color, double phase)
     {

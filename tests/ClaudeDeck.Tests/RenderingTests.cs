@@ -104,3 +104,49 @@ public class RenderingTests
         Assert.StartsWith("jeu.", b.ResetLabel(new DateTimeOffset(2026, 11, 12, 9, 0, 0, TimeSpan.Zero), Now, weekly: true));
     }
 }
+
+public class LogoTests
+{
+    [Fact]
+    public void Default_logo_is_drawn_spark()
+    {
+        var v = KeyViewBuilder.Logo(null);
+        Assert.Equal(KeyIcon.Spark, v.Icon);
+        using var r = new KeyRenderer();
+        var img = r.Render(v);
+        // Le centre-haut porte un rayon (couleur terracotta), le coin reste au fond.
+        int Px(int x, int y) => (y * 80 + x) * 4;
+        Assert.True(img.Rgba[Px(40, 18)] > 150);
+        Assert.Equal(0x1C, img.Rgba[Px(1, 1)]);
+    }
+
+    [Fact]
+    public void Custom_logo_is_loaded_scaled_and_cached()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"cd-logo-{Guid.NewGuid():N}.png");
+        try
+        {
+            // Image 200×100 rouge : mise à l'échelle 80×40, centrée verticalement sur fond noir.
+            using (var bmp = new SkiaSharp.SKBitmap(200, 100))
+            {
+                bmp.Erase(SkiaSharp.SKColors.Red);
+                using var data = SkiaSharp.SKImage.FromBitmap(bmp).Encode(SkiaSharp.SKEncodedImageFormat.Png, 100);
+                File.WriteAllBytes(path, data.ToArray());
+            }
+            var cache = new LogoImageCache(80);
+            var img = cache.Get(path)!;
+            Assert.NotNull(img);
+            Assert.Same(img, cache.Get(path));
+            Assert.Equal(255, img.Rgba[(40 * 80 + 40) * 4]);     // centre rouge
+            Assert.Equal(0, img.Rgba[(5 * 80 + 40) * 4]);         // bande noire en haut
+            using var r = new KeyRenderer();
+            Assert.Same(img, r.Render(KeyViewBuilder.Logo(img)));
+            Assert.Null(cache.Get(path + ".absent"));
+            Assert.Null(cache.Get(null));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+}

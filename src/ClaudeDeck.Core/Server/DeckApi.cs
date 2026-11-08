@@ -240,7 +240,9 @@ public sealed class DeckApi
             if (B("offWhenLocked") is { } ol) c.Display.OffWhenLocked = ol;
             if (I("doneFadeMinutes") is { } df) c.Display.DoneFadeMinutes = Math.Clamp(df, 0, 24 * 60);
             if (B("oauthFallback") is { } of) c.PlanUsage.OAuthFallback = of;
-            if (B("apiEnabled") is { } ae) c.Api.Enabled = ae;
+            if (Str(b, "bottomRightKey") is BottomRightKeys.Logo or BottomRightKeys.Api) c.Display.BottomRightKey = Str(b, "bottomRightKey")!;
+            if (b.ContainsKey("logoImagePath"))
+                c.Display.LogoImagePath = string.IsNullOrWhiteSpace(Str(b, "logoImagePath")) ? null : Str(b, "logoImagePath")!.Trim().Trim('"');
             if (D("lowBalanceUsd") is { } lb) c.Api.LowBalanceUsd = Math.Max(0, lb);
             if (I("rotation") is { } rot && rot is 0 or 90 or 180 or 270) c.Device.Rotation = rot;
             if (B("flipHorizontal") is { } fh) c.Device.FlipHorizontal = fh;
@@ -301,7 +303,8 @@ public sealed class DeckApi
                 ["offWhenLocked"] = cfg.Display.OffWhenLocked,
                 ["doneFadeMinutes"] = cfg.Display.DoneFadeMinutes,
                 ["oauthFallback"] = cfg.PlanUsage.OAuthFallback,
-                ["apiEnabled"] = cfg.Api.Enabled,
+                ["bottomRightKey"] = cfg.Display.BottomRightKey,
+                ["logoImagePath"] = cfg.Display.LogoImagePath,
                 ["lowBalanceUsd"] = cfg.Api.LowBalanceUsd,
                 ["balanceUsd"] = cfg.Api.BalanceUsd,
                 ["balanceSetAt"] = cfg.Api.BalanceSetAt?.ToString("O"),

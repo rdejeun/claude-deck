@@ -24,7 +24,7 @@ public sealed class ServerTests : IDisposable
         probe.Stop();
 
         var store = new ConfigStore(_dir);
-        store.Update(c => { c.Port = _port; c.Token = "secret"; c.Api.Enabled = false; });
+        store.Update(c => { c.Port = _port; c.Token = "secret"; c.Display.BottomRightKey = BottomRightKeys.Logo; });
         _host = new DeckHost(store, new NullPlatform(_dir), null, useHardware: false);
         _host.Start();
     }

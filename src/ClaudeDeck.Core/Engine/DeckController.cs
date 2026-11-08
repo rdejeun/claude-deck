@@ -20,7 +20,7 @@ public sealed class DeckController : IDisposable
 {
     public const int KeyCount = 6;
     public const int SessionSlots = 3;
-    public const int KeyFiveHour = 3, KeySevenDay = 4, KeyApi = 5;
+    public const int KeyFiveHour = 3, KeySevenDay = 4, KeyBottomRight = 5;
 
     private readonly SessionTracker _sessions;
     private readonly PlanUsageStore _plan;
@@ -31,6 +31,7 @@ public sealed class DeckController : IDisposable
     private readonly TimeProvider _time;
     private readonly KeyRenderer _renderer = new();
     private readonly KeyViewBuilder _builder = new();
+    private readonly LogoImageCache _logos = new(80);
     private readonly SlotAllocator _slots = new(SessionSlots);
     private readonly object _gate = new();
 
@@ -129,7 +130,7 @@ public sealed class DeckController : IDisposable
             }
             _sessions.Acknowledge(s.Id);
         }
-        else
+        else if (key != KeyBottomRight || _config.Current.Display.BottomRightKey == BottomRightKeys.Api)
         {
             _usage?.RefreshNow();
         }
@@ -219,10 +220,9 @@ public sealed class DeckController : IDisposable
         var plan = _plan.Snapshot();
         views[KeyFiveHour] = _builder.PlanWindow("SESSION · 5 H", plan.FiveHour, now, weekly: false);
         views[KeySevenDay] = _builder.PlanWindow("SEMAINE", plan.SevenDay, now, weekly: true);
-        views[KeyApi] = _usage is null
-            ? KeyViewBuilder.Message("API · 7 J", "—", "désactivé")
-            : _builder.Api(_usage.Api, cfg.Api.LowBalanceUsd, now);
-        if (!cfg.Api.Enabled) views[KeyApi] = KeyViewBuilder.Message("API · 7 J", "—", "désactivé");
+        views[KeyBottomRight] = cfg.Display.BottomRightKey == BottomRightKeys.Api && _usage is not null
+            ? _builder.Api(_usage.Api, cfg.Api.LowBalanceUsd, now)
+            : KeyViewBuilder.Logo(_logos.Get(cfg.Display.LogoImagePath));
         return views;
     }
 

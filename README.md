@@ -7,8 +7,8 @@ Moniteur d'activité **Claude Code** sur **Stream Deck Mini** (6 touches), pour 
 ┌───────────────┬───────────────┬───────────────┐
 │  session 1    │  session 2    │  session 3 +N │   ← sessions Claude Code (couleur = état, appui = focus)
 ├───────────────┼───────────────┼───────────────┤
-│ SESSION · 5 H │   SEMAINE     │   API · 7 J   │   ← limites du forfait Pro/Max, dépense API
-│ 62 % → 18:43  │ 23 % → jeu.   │ 41,27 $ ≈118 $│
+│ SESSION · 5 H │   SEMAINE     │     logo      │   ← limites du forfait Pro/Max
+│ 62 % → 18:43  │ 23 % → jeu.   │  (ou API 7 j) │
 └───────────────┴───────────────┴───────────────┘
 ```
 
@@ -37,7 +37,11 @@ ou Windows Terminal) et acquitte l'état « terminé ».
 
 1. **Session (5 h)** du forfait Pro/Max : % consommé et heure de réinitialisation.
 2. **Semaine** : % consommé et jour + heure de réinitialisation.
-3. **API · 7 jours** : dépense de l'organisation (Admin API) et **solde estimé**.
+3. **Logo** (par défaut) : un motif d'étoile rayonnante, ou votre propre image (réglage « Image du logo »,
+   PNG/JPG redimensionné automatiquement). Le logo officiel de Claude, marque d'Anthropic, n'est pas fourni dans ce
+   dépôt : vous pouvez l'y mettre vous-même pour votre usage personnel.
+   En option, **API · 7 jours** : dépense de l'organisation (Admin API) et **solde estimé** — nécessite un compte
+   Console **d'organisation** (voir plus bas).
 
 Appuyer sur une jauge force un rafraîchissement. L'écran baisse en veille après 15 min sans activité
 (jamais si une session travaille ou attend), et s'éteint quand Windows est verrouillé.
@@ -104,7 +108,7 @@ sessions suivies, jauges, luminosité, veille, orientation, et :
   La page *Admin keys* n'apparaît que dans un **compte d'organisation**, pour le rôle **admin** ou **propriétaire** :
   un compte individuel doit d'abord créer son organisation (Console → Settings → Organization).
   Une **clé personnelle** (*Linked account* = vous) **non limitée à un espace de travail** est aussi acceptée par l'Admin API.
-  Sans clé, décochez « Touche API » dans les réglages.
+  Ces réglages n'apparaissent que si la touche en bas à droite est en mode « Dépense API ».
 - **Solde** : aucune API publique ne fournit le solde de crédit prépayé. Saisissez le montant affiché dans la Console
   (Billing) après chaque recharge ; ClaudeDeck affiche ensuite `solde ≈ saisi − dépense mesurée depuis`.
 

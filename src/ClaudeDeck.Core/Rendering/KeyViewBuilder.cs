@@ -246,6 +246,14 @@ public sealed class KeyViewBuilder
 
     // ───────────────────────────── Divers ─────────────────────────────
 
+    /// <summary>
+    /// Touche logo : image personnelle si fournie, sinon une étoile rayonnante générique (pas le logo officiel de Claude,
+    /// marque d'Anthropic : l'utilisateur peut charger le sien via LogoImagePath).
+    /// </summary>
+    public static KeyView Logo(KeyImage? custom) => custom is not null
+        ? new KeyView { Image = custom }
+        : new KeyView { Background = Rgb.Hex(0x1C1D22), Accent = Rgb.Hex(0xD97757), Icon = KeyIcon.Spark };
+
     public static KeyView TestPattern(int index) => new()
     {
         Background = Rgb.Hex(0x1E3A8A), Foreground = Rgb.Hex(0xFFFFFF), Muted = Rgb.Hex(0xBFDBFE),

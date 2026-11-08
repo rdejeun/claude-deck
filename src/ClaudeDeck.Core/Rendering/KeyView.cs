@@ -17,6 +17,8 @@ public enum KeyIcon
     Compress,
     Cross,
     Idle,
+    /// <summary>Grand motif d'étoile rayonnante (touche logo).</summary>
+    Spark,
 }
 
 /// <summary>
@@ -55,4 +57,7 @@ public sealed record KeyView
 
     /// <summary>Mire de test : numéro de touche et repère d'orientation.</summary>
     public int? TestPatternIndex { get; init; }
+
+    /// <summary>Image fournie par l'utilisateur, affichée telle quelle sur toute la touche.</summary>
+    public KeyImage? Image { get; init; }
 }
