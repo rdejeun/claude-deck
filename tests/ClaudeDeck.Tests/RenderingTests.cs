@@ -1,3 +1,4 @@
+using ClaudeDeck.Core.Platform;
 using ClaudeDeck.Core.Device;
 using ClaudeDeck.Core.Model;
 using ClaudeDeck.Core.Rendering;
@@ -147,6 +148,78 @@ public class LogoTests
         finally
         {
             File.Delete(path);
+        }
+    }
+}
+
+public class BrowserLauncherTests
+{
+    [Theory]
+    [InlineData("\"C:\\Program Files\\Mozilla Firefox\\firefox.exe\" -osint -url \"%1\"", "C:\\Program Files\\Mozilla Firefox\\firefox.exe", "-new-window")]
+    [InlineData("\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\" --single-argument %1", "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", "--new-window")]
+    [InlineData("\"C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe\" --single-argument %1", "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe", "--new-window")]
+    [InlineData("C:\\Apps\\Brave\\brave.exe --single-argument %1", "C:\\Apps\\Brave\\brave.exe", "--new-window")]
+    public void Known_browsers_get_new_window_flag(string command, string exe, string flag)
+    {
+        var r = BrowserLauncher.NewWindowCommand(command, "https://claude.ai/new");
+        Assert.NotNull(r);
+        Assert.Equal(exe, r!.Value.Exe);
+        Assert.Equal(new[] { flag, "https://claude.ai/new" }, r.Value.Args);
+    }
+
+    [Fact]
+    public void Unknown_browser_falls_back()
+    {
+        Assert.Null(BrowserLauncher.NewWindowCommand("\"C:\\x\\obscure.exe\" %1", "https://claude.ai/new"));
+        Assert.Null(BrowserLauncher.NewWindowCommand(null, "https://claude.ai/new"));
+    }
+
+    [Theory]
+    [InlineData("https://claude.ai/new", true)]
+    [InlineData("http://localhost:3000", true)]
+    [InlineData("file:///C:/Windows/System32/calc.exe", false)]
+    [InlineData("calc.exe", false)]
+    [InlineData("", false)]
+    public void Only_web_urls_are_allowed(string url, bool ok) => Assert.Equal(ok, BrowserLauncher.IsWebUrl(url));
+}
+
+public class LogoKeyTests
+{
+    private sealed class RecordingPlatform : IPlatformServices
+    {
+        public readonly List<(string Url, bool NewWindow)> Opened = [];
+        public ClientProcess? ResolveClient(System.Net.IPEndPoint remote, int serverPort) => null;
+        public bool IsAlive(ClientProcess client) => true;
+        public bool FocusSession(SessionSnapshot session) => false;
+        public bool IsElgatoSoftwareRunning() => false;
+        public void OpenUrl(string url) { }
+        public void OpenInBrowser(string url, bool newWindow) => Opened.Add((url, newWindow));
+        public ISecretStore Secrets { get; } = new FileSecretStore(Path.GetTempPath(), null, null);
+    }
+
+    [Fact]
+    public void Logo_key_opens_claude_even_when_dimmed()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"cd-logo-{Guid.NewGuid():N}");
+        try
+        {
+            var time = new FakeTime();
+            var store = new ClaudeDeck.Core.Config.ConfigStore(dir);
+            var platform = new RecordingPlatform();
+            using var deck = new ClaudeDeck.Core.Engine.DeckController(new ClaudeDeck.Core.Engine.SessionTracker(time),
+                new PlanUsageStore(), null, store, null, platform, time);
+
+            time.Advance(TimeSpan.FromHours(2)); // écran en veille
+            deck.Press(ClaudeDeck.Core.Engine.DeckController.KeyBottomRight);
+            Assert.Equal(("https://claude.ai/new", false), Assert.Single(platform.Opened));
+
+            store.Update(c => c.Display.LogoUrl = null);
+            deck.Press(ClaudeDeck.Core.Engine.DeckController.KeyBottomRight);
+            Assert.Single(platform.Opened);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
         }
     }
 }

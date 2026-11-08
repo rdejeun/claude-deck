@@ -40,6 +40,8 @@ ou Windows Terminal) et acquitte l'état « terminé ».
 3. **Logo** (par défaut) : un motif d'étoile rayonnante, ou votre propre image (réglage « Image du logo »,
    PNG/JPG redimensionné automatiquement). Le logo officiel de Claude, marque d'Anthropic, n'est pas fourni dans ce
    dépôt : vous pouvez l'y mettre vous-même pour votre usage personnel.
+   **Appui : ouvre [claude.ai/new](https://claude.ai/new)** dans le navigateur par défaut (nouvel onglet ; option
+   « nouvelle fenêtre » dans les réglages), même si l'écran est en veille. Adresse modifiable, vide = aucune action.
    En option, **API · 7 jours** : dépense de l'organisation (Admin API) et **solde estimé** — nécessite un compte
    Console **d'organisation** (voir plus bas).
 

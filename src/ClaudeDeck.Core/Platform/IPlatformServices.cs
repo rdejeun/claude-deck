@@ -21,6 +21,9 @@ public interface IPlatformServices
 
     void OpenUrl(string url);
 
+    /// <summary>Ouvre une adresse web dans le navigateur par défaut, si possible dans une nouvelle fenêtre.</summary>
+    void OpenInBrowser(string url, bool newWindow);
+
     ISecretStore Secrets { get; }
 }
 
@@ -45,6 +48,8 @@ public sealed class NullPlatform : IPlatformServices
     }
     public bool IsElgatoSoftwareRunning() => false;
     public void OpenUrl(string url) => Util.Log.Info($"[sim] ouvrir {url}");
+    public void OpenInBrowser(string url, bool newWindow) =>
+        Util.Log.Info($"[sim] ouvrir {url} {(newWindow ? "dans une nouvelle fenêtre" : "")}");
     public ISecretStore Secrets { get; }
 }
 

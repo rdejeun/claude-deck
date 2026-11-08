@@ -129,6 +129,9 @@
         </select></label>
       <label><span>Image du logo (chemin d'un PNG/JPG, vide = motif par défaut)</span>
         <input id="logoImagePath" type="text" placeholder="C:\Images\logo.png"></label>
+      <label><span>Adresse ouverte par la touche logo (vide = rien)</span>
+        <input id="logoUrl" type="url" placeholder="https://claude.ai/new"></label>
+      <label class="check"><input id="logoUrlNewWindow" type="checkbox"> Nouvelle fenêtre plutôt qu'un nouvel onglet</label>
       <label><span>Rotation de l'image (°)</span>
         <select id="rotation"><option>0</option><option>90</option><option>180</option><option>270</option></select></label>
       <label class="check"><input id="flipHorizontal" type="checkbox"> Miroir horizontal</label>
@@ -224,6 +227,8 @@ function render(s) {
     for (const k of ["brightness", "dimBrightness", "dimAfterMinutes", "doneFadeMinutes", "lowBalanceUsd"]) $(k).value = st[k];
     $("bottomRightKey").value = st.bottomRightKey;
     $("logoImagePath").value = st.logoImagePath || "";
+    $("logoUrl").value = st.logoUrl || "";
+    $("logoUrlNewWindow").checked = !!st.logoUrlNewWindow;
     $("rotation").value = String(st.rotation);
     for (const k of ["flipHorizontal", "flipVertical", "offWhenLocked", "oauthFallback"]) $(k).checked = !!st[k];
   }
@@ -246,6 +251,7 @@ $("saveSettings").onclick = async () => {
     flipHorizontal: $("flipHorizontal").checked, flipVertical: $("flipVertical").checked,
     offWhenLocked: $("offWhenLocked").checked, oauthFallback: $("oauthFallback").checked,
     bottomRightKey: $("bottomRightKey").value, logoImagePath: $("logoImagePath").value,
+    logoUrl: $("logoUrl").value, logoUrlNewWindow: $("logoUrlNewWindow").checked,
   });
   toast("Réglages enregistrés");
 };

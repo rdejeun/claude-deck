@@ -132,6 +132,53 @@ internal sealed class WindowsPlatform : IPlatformServices
         return procs.Length > 0;
     }
 
+    public void OpenInBrowser(string url, bool newWindow)
+    {
+        if (newWindow)
+        {
+            var command = DefaultBrowserCommand();
+            if (BrowserLauncher.NewWindowCommand(command, url) is { } launch && File.Exists(launch.Exe))
+            {
+                try
+                {
+                    var psi = new ProcessStartInfo(launch.Exe) { UseShellExecute = false };
+                    foreach (var a in launch.Args) psi.ArgumentList.Add(a);
+                    Process.Start(psi)?.Dispose();
+                    Log.Info($"Ouverture de {url} dans une nouvelle fenêtre ({Path.GetFileName(launch.Exe)})");
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn($"Lancement de {launch.Exe} impossible : {ex.Message}");
+                }
+            }
+            else
+            {
+                Log.Info($"Navigateur par défaut non reconnu ({command ?? "inconnu"}) : ouverture standard.");
+            }
+        }
+        OpenUrl(url);
+    }
+
+    /// <summary>Commande d'ouverture du navigateur par défaut pour https (choix de l'utilisateur dans Windows).</summary>
+    private static string? DefaultBrowserCommand()
+    {
+        try
+        {
+            using var choice = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(
+                @"Software\Microsoft\Windows\Shell\Associations\UrlAssociations\https\UserChoice");
+            var progId = choice?.GetValue("ProgId") as string;
+            if (string.IsNullOrEmpty(progId)) return null;
+            using var cmd = Microsoft.Win32.Registry.ClassesRoot.OpenSubKey($@"{progId}\shell\open\command");
+            return cmd?.GetValue(null) as string;
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"Navigateur par défaut introuvable : {ex.Message}");
+            return null;
+        }
+    }
+
     public void OpenUrl(string url)
     {
         try

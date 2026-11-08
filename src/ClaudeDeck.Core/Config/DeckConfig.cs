@@ -46,6 +46,15 @@ public sealed class DisplayConfig
 
     /// <summary>Image personnelle (PNG, JPG…) affichée par la touche logo à la place du motif par défaut. Null = motif.</summary>
     public string? LogoImagePath { get; set; }
+
+    /// <summary>Adresse ouverte par un appui sur la touche logo (http/https uniquement). Vide = aucune action.</summary>
+    public string? LogoUrl { get; set; } = "https://claude.ai/new";
+
+    /// <summary>
+    /// Force une nouvelle fenêtre du navigateur par défaut (Firefox, Chrome, Edge, Brave, Vivaldi, Opera reconnus).
+    /// Faux (défaut) : ouverture standard de Windows, en général un nouvel onglet.
+    /// </summary>
+    public bool LogoUrlNewWindow { get; set; } = false;
 }
 
 public static class BottomRightKeys

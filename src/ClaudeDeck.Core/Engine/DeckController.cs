@@ -113,6 +113,15 @@ public sealed class DeckController : IDisposable
         var now = _time.GetUtcNow();
         var wasDimmed = IsDimmed(now);
         _lastActivity = now;
+
+        // La touche logo est un lanceur explicite : elle agit même si l'écran était en veille.
+        var display = _config.Current.Display;
+        if (key == KeyBottomRight && display.BottomRightKey == BottomRightKeys.Logo)
+        {
+            LaunchLogoUrl(display);
+            return;
+        }
+
         if (wasDimmed) return; // Le premier appui réveille seulement l'écran.
 
         if (key < SessionSlots)
@@ -133,6 +142,25 @@ public sealed class DeckController : IDisposable
         else if (key != KeyBottomRight || _config.Current.Display.BottomRightKey == BottomRightKeys.Api)
         {
             _usage?.RefreshNow();
+        }
+    }
+
+    private void LaunchLogoUrl(DisplayConfig display)
+    {
+        var url = display.LogoUrl?.Trim();
+        if (string.IsNullOrEmpty(url)) return;
+        if (!BrowserLauncher.IsWebUrl(url))
+        {
+            Log.Warn($"Adresse du logo ignorée (http/https uniquement) : {url}");
+            return;
+        }
+        try
+        {
+            _platform.OpenInBrowser(url, display.LogoUrlNewWindow);
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Ouverture de {url}", ex);
         }
     }
 
