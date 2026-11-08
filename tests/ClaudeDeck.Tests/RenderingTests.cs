@@ -233,10 +233,10 @@ public class AnimationTests
     public void Embedded_claude_spinner_loads_with_transparency()
     {
         var a = SpriteAnimation.LoadEmbeddedClaudeSpinner();
-        Assert.Equal(21, a.Frames.Count);
-        Assert.Equal(5, a.Frames.Distinct().Count()); // 5 glyphes partagés par les 21 étapes
+        Assert.Equal(14, a.Frames.Count);
+        Assert.Equal(8, a.Frames.Distinct().Count()); // 8 glyphes partagés par les 14 étapes
         Assert.Equal(1400, a.TotalMs);
-        Assert.Equal(24, a.Frames[0].Width);
+        Assert.Equal(26, a.Frames[0].Width);
         Assert.Equal(28, a.Frames[0].Height);
         // Coin transparent, glyphe opaque quelque part.
         Assert.Equal(0, a.Frames[0].Pixels[3]);
