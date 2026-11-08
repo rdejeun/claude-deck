@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Application Windows : daemon en zone de notification + commandes en ligne (statusline, install, uninstall). -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.17763.0</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <AssemblyName>claude-deck</AssemblyName>
+    <RootNamespace>ClaudeDeck.App</RootNamespace>
+    <ApplicationIcon>..\..\assets\claude-deck.ico</ApplicationIcon>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <!-- Publication : un seul .exe autonome, sans runtime .NET à installer. -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <PublishReadyToRun>false</PublishReadyToRun>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>embedded</DebugType>
+    <CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
+  </PropertyGroup>
+  <!-- Les symboles natifs de Skia (80 Mo) n'ont rien à faire dans le livrable. -->
+  <Target Name="RemoveNativePdbs" AfterTargets="Publish">
+    <Delete Files="$(PublishDir)libSkiaSharp.pdb;$(PublishDir)ClaudeDeck.Core.pdb" />
+  </Target>
+  <ItemGroup>
+    <ProjectReference Include="..\ClaudeDeck.Core\ClaudeDeck.Core.csproj" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
+  </ItemGroup>
+</Project>

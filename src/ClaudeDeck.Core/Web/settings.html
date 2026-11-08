@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClaudeDeck</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --text: #16181d; --muted: #616772; --line: #e3e6eb;
+    --accent: #2f6fde; --ok: #15803d; --warn: #c2410c; --err: #b91c1c; --deck: #0c0d10;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f1115; --panel: #171a20; --text: #e8eaee; --muted: #9aa1ad; --line: #272b33;
+            --accent: #6aa0ff; --ok: #4ade80; --warn: #fb923c; --err: #f87171; --deck: #050506; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, "Segoe UI", sans-serif; }
+  main { max-width: 920px; margin: 0 auto; padding: 24px 16px 64px; }
+  header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+  h1 { font-size: 22px; margin: 0; }
+  h2 { font-size: 15px; margin: 0 0 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .pill { font-size: 13px; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+  .pill.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+  .pill.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, transparent); }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
+  .deck { background: var(--deck); border-radius: 16px; padding: 14px; display: grid; grid-template-columns: repeat(3, 1fr);
+          gap: 12px; max-width: 380px; margin: 0 auto; }
+  .deck button { padding: 0; border: 0; background: none; cursor: pointer; border-radius: 10px; overflow: hidden; aspect-ratio: 1; }
+  .deck img { width: 100%; height: 100%; display: block; image-rendering: auto; }
+  .deck button:active { transform: scale(.96); }
+  .hint { color: var(--muted); font-size: 13px; margin: 10px 0 0; text-align: center; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  td.mono { font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--muted); word-break: break-all; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px 20px; }
+  label { display: block; font-size: 14px; }
+  label span { display: block; color: var(--muted); font-size: 13px; margin-bottom: 4px; }
+  input[type=number], input[type=text], input[type=password], select {
+    width: 100%; padding: 7px 9px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font: inherit; }
+  .check { display: flex; gap: 8px; align-items: center; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: end; }
+  .row > label { flex: 1 1 220px; }
+  button.btn { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--text);
+               font: inherit; cursor: pointer; }
+  button.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .stat { font-size: 26px; font-weight: 700; }
+  .muted { color: var(--muted); }
+  .note { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
+  .err { color: var(--err); }
+  #toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg);
+           padding: 8px 14px; border-radius: 8px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: 90vw; }
+  #toast.show { opacity: .95; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>ClaudeDeck</h1>
+    <span id="device" class="pill">…</span>
+    <span id="integration" class="pill">…</span>
+  </header>
+
+  <section>
+    <h2>Aperçu des touches</h2>
+    <div class="deck" id="deck"></div>
+    <p class="hint">Cliquer sur une touche équivaut à l'appuyer sur le Stream Deck.</p>
+    <p class="hint err" id="elgato" hidden>Le logiciel Stream Deck d'Elgato est lancé : fermez-le, il écraserait l'affichage.</p>
+  </section>
+
+  <section>
+    <h2>Sessions Claude Code</h2>
+    <table>
+      <thead><tr><th>Projet</th><th>État</th><th>Outil</th><th>Contexte</th><th>Processus</th></tr></thead>
+      <tbody id="sessions"><tr><td colspan="5" class="muted">Aucune session.</td></tr></tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Forfait et API</h2>
+    <div class="grid">
+      <div><div class="muted">Session (5 h)</div><div class="stat" id="five">—</div><div class="muted" id="fiveSub"></div></div>
+      <div><div class="muted">Semaine</div><div class="stat" id="week">—</div><div class="muted" id="weekSub"></div></div>
+      <div><div class="muted">API, 7 derniers jours</div><div class="stat" id="spend">—</div><div class="muted" id="spendSub"></div></div>
+    </div>
+    <p class="note">Les jauges du forfait proviennent de la status line des sessions CLI (champ <code>rate_limits</code>).
+      L'extension VS Code n'exécute pas de status line : activez la source OAuth ci-dessous si vous l'utilisez seule.</p>
+    <p class="note err" id="oauthError" hidden></p>
+  </section>
+
+  <section>
+    <h2>Admin API et solde</h2>
+    <div class="row">
+      <label><span>Clé Admin API (sk-ant-admin…) — <span id="keyState">non configurée</span></span>
+        <input id="adminKey" type="password" autocomplete="off" placeholder="sk-ant-admin01-…"></label>
+      <button class="btn primary" id="saveKey">Enregistrer</button>
+      <button class="btn" id="clearKey">Supprimer</button>
+    </div>
+    <p class="note">Stockée chiffrée (DPAPI) dans votre profil Windows. Utilisée uniquement pour <code>GET /v1/organizations/cost_report</code>.</p>
+    <div class="row" style="margin-top:14px">
+      <label><span>Solde affiché dans la Console (Billing), en $</span>
+        <input id="balance" type="text" inputmode="decimal" placeholder="ex. 25,00"></label>
+      <button class="btn primary" id="saveBalance">Enregistrer le solde</button>
+      <button class="btn" id="clearBalance">Effacer</button>
+    </div>
+    <p class="note" id="balanceNote">Aucune API publique ne fournit le solde : saisissez-le après chaque recharge, ClaudeDeck en déduit ensuite la dépense mesurée.</p>
+  </section>
+
+  <section>
+    <h2>Réglages</h2>
+    <div class="grid">
+      <label><span>Luminosité (%)</span><input id="brightness" type="number" min="0" max="100"></label>
+      <label><span>Luminosité en veille (%)</span><input id="dimBrightness" type="number" min="0" max="100"></label>
+      <label><span>Veille après (minutes, 0 = jamais)</span><input id="dimAfterMinutes" type="number" min="0"></label>
+      <label><span>« Terminé » repasse au repos après (min, 0 = jamais)</span><input id="doneFadeMinutes" type="number" min="0"></label>
+      <label><span>Alerte solde bas ($)</span><input id="lowBalanceUsd" type="number" min="0" step="0.5"></label>
+      <label><span>Rotation de l'image (°)</span>
+        <select id="rotation"><option>0</option><option>90</option><option>180</option><option>270</option></select></label>
+      <label class="check"><input id="flipHorizontal" type="checkbox"> Miroir horizontal</label>
+      <label class="check"><input id="flipVertical" type="checkbox"> Miroir vertical</label>
+      <label class="check"><input id="offWhenLocked" type="checkbox"> Éteindre quand Windows est verrouillé</label>
+      <label class="check"><input id="apiEnabled" type="checkbox"> Touche API (Admin API)</label>
+      <label class="check"><input id="oauthFallback" type="checkbox"> Source OAuth non documentée pour les jauges</label>
+    </div>
+    <div class="row" style="margin-top:16px">
+      <button class="btn primary" id="saveSettings">Enregistrer</button>
+      <button class="btn" id="testPattern">Mire de test</button>
+      <button class="btn" id="refresh">Rafraîchir les jauges</button>
+      <button class="btn" id="install">Installer l'intégration Claude Code</button>
+      <button class="btn" id="uninstall">Désinstaller l'intégration</button>
+    </div>
+    <p class="note">Mire de test : chaque touche doit afficher son numéro (1 à 3 en haut), la flèche vers le haut et le carré rouge en haut à gauche.
+      Sinon, ajustez rotation et miroirs.</p>
+  </section>
+</main>
+<div id="toast"></div>
+
+<script>
+const TOKEN = "{{TOKEN}}";
+const H = { "X-ClaudeDeck-Token": TOKEN, "Content-Type": "application/json" };
+const $ = id => document.getElementById(id);
+const STATES = { Idle: "Au repos", Working: "Travaille", Waiting: "En attente", Done: "Terminé", Compacting: "Compaction", Error: "Erreur" };
+let version = -1, settingsLoaded = false;
+
+const deck = $("deck");
+for (let i = 0; i < 6; i++) {
+  const b = document.createElement("button");
+  b.title = "Touche " + (i + 1);
+  b.innerHTML = `<img alt="Touche ${i + 1}" src="/key/${i}.png">`;
+  b.onclick = () => api("/press/" + i);
+  deck.appendChild(b);
+}
+
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 2600); }
+async function api(path, body) {
+  const r = await fetch("/api" + path, { method: "POST", headers: H, body: JSON.stringify(body || {}) });
+  const text = await r.text();
+  if (!r.ok) { toast(text || ("Erreur " + r.status)); throw new Error(text); }
+  return text;
+}
+const fmtMoney = v => v == null ? "—" : Number(v).toLocaleString("fr-FR", { style: "currency", currency: "USD" });
+const fmtTime = iso => iso ? new Date(iso).toLocaleString("fr-FR", { weekday: "short", hour: "2-digit", minute: "2-digit" }) : "";
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function render(s) {
+  if (s.version !== version) {
+    version = s.version;
+    deck.querySelectorAll("img").forEach((img, i) => img.src = `/key/${i}.png?v=${version}`);
+  }
+  $("device").textContent = s.device.description;
+  $("device").className = "pill " + (s.device.connected ? "ok" : "warn");
+  $("elgato").hidden = !s.elgatoRunning;
+  const inst = s.integrationInstalled;
+  $("integration").textContent = inst == null ? "simulateur" : inst ? "Intégration Claude Code installée" : "Intégration non installée";
+  $("integration").className = "pill " + (inst ? "ok" : inst == null ? "" : "warn");
+
+  $("sessions").innerHTML = s.sessions.length === 0
+    ? `<tr><td colspan="5" class="muted">Aucune session. Lancez Claude Code après avoir installé l'intégration.</td></tr>`
+    : s.sessions.map(x => `<tr><td><b>${esc(x.name)}</b><br><span class="muted">${esc(x.cwd)}</span></td>
+        <td>${STATES[x.state] || x.state}${x.state === "Waiting" ? " (" + (x.waitReason === "Question" ? "question" : "permission") + ")" : ""}</td>
+        <td>${esc(x.tool || "")}</td><td>${x.contextPercent != null ? Math.round(x.contextPercent) + " %" : ""}</td>
+        <td class="mono">${x.pid ? esc(x.process || "") + " #" + x.pid : "—"}</td></tr>`).join("");
+
+  const w = (el, sub, win) => {
+    $(el).textContent = win ? Math.round(win.usedPercent) + " %" : "—";
+    $(sub).textContent = win ? `réinit. ${fmtTime(win.resetsAt)} · vu ${fmtTime(win.observedAt)} (${win.source})` : "en attente de données";
+  };
+  w("five", "fiveSub", s.plan.fiveHour);
+  w("week", "weekSub", s.plan.sevenDay);
+  $("oauthError").hidden = !s.plan.oauthError;
+  $("oauthError").textContent = s.plan.oauthError ? "Source OAuth : " + s.plan.oauthError : "";
+
+  if (s.api) {
+    $("keyState").textContent = s.api.configured ? "configurée" : "non configurée";
+    $("spend").textContent = s.api.configured ? fmtMoney(s.api.spend7dUsd) : "—";
+    $("spendSub").textContent = !s.api.configured ? "clé Admin API requise"
+      : s.api.error ? s.api.error
+      : `aujourd'hui ${fmtMoney(s.api.todayUsd)}` + (s.api.balanceEstimateUsd != null ? ` · solde ≈ ${fmtMoney(s.api.balanceEstimateUsd)}` : "");
+  }
+  const st = s.settings;
+  $("balanceNote").textContent = st.balanceUsd != null
+    ? `Solde saisi : ${fmtMoney(st.balanceUsd)} le ${new Date(st.balanceSetAt).toLocaleString("fr-FR")}.`
+    : "Aucune API publique ne fournit le solde : saisissez-le après chaque recharge, ClaudeDeck en déduit ensuite la dépense mesurée.";
+
+  if (!settingsLoaded) {
+    settingsLoaded = true;
+    for (const k of ["brightness", "dimBrightness", "dimAfterMinutes", "doneFadeMinutes", "lowBalanceUsd"]) $(k).value = st[k];
+    $("rotation").value = String(st.rotation);
+    for (const k of ["flipHorizontal", "flipVertical", "offWhenLocked", "apiEnabled", "oauthFallback"]) $(k).checked = !!st[k];
+  }
+}
+
+async function poll() {
+  try {
+    const r = await fetch("/api/state", { headers: H });
+    if (r.ok) render(await r.json());
+  } catch (e) { $("device").textContent = "daemon injoignable"; $("device").className = "pill warn"; }
+  setTimeout(poll, 1000);
+}
+poll();
+
+$("saveSettings").onclick = async () => {
+  const num = k => Number($(k).value);
+  await api("/settings", {
+    brightness: num("brightness"), dimBrightness: num("dimBrightness"), dimAfterMinutes: num("dimAfterMinutes"),
+    doneFadeMinutes: num("doneFadeMinutes"), lowBalanceUsd: num("lowBalanceUsd"), rotation: num("rotation"),
+    flipHorizontal: $("flipHorizontal").checked, flipVertical: $("flipVertical").checked,
+    offWhenLocked: $("offWhenLocked").checked, apiEnabled: $("apiEnabled").checked, oauthFallback: $("oauthFallback").checked,
+  });
+  toast("Réglages enregistrés");
+};
+$("saveKey").onclick = async () => { await api("/admin-key", { key: $("adminKey").value }); $("adminKey").value = ""; toast("Clé enregistrée"); };
+$("clearKey").onclick = async () => { await api("/admin-key", { key: null }); toast("Clé supprimée"); };
+$("saveBalance").onclick = async () => { await api("/balance", { balanceUsd: $("balance").value }); $("balance").value = ""; toast("Solde enregistré"); };
+$("clearBalance").onclick = async () => { await api("/balance", { balanceUsd: null }); toast("Solde effacé"); };
+$("testPattern").onclick = () => api("/test-pattern").then(() => toast("Mire affichée 8 s"));
+$("refresh").onclick = () => api("/refresh").then(() => toast("Rafraîchissement demandé"));
+$("install").onclick = async () => toast(await api("/install"));
+$("uninstall").onclick = async () => toast(await api("/uninstall"));
+</script>
+</body>
+</html>
