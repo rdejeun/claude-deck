@@ -52,8 +52,9 @@ public sealed class SpriteAnimation
     }
 
     /// <summary>
-    /// Astérisque animé de Claude Code (fourni par l'utilisateur, nettoyé : transparence reconstruite, teinte unifiée),
-    /// stocké en bande horizontale PNG + durées JSON dans les ressources.
+    /// Astérisque animé de Claude Code, reconstitué à partir de glyphes PNG fournis par l'utilisateur :
+    /// bande horizontale (un glyphe par case) + JSON décrivant la séquence des glyphes et la durée de chaque étape.
+    /// Les étapes qui répètent un glyphe partagent la même image (aucun nouveau rendu entre elles).
     /// </summary>
     public static SpriteAnimation LoadEmbeddedClaudeSpinner()
     {
@@ -61,15 +62,17 @@ public sealed class SpriteAnimation
         using var meta = asm.GetManifestResourceStream("ClaudeDeck.Animations.claude-spinner.json")
                          ?? throw new InvalidOperationException("Animation manquante.");
         using var doc = JsonDocument.Parse(meta);
-        var w = doc.RootElement.GetProperty("frameWidth").GetInt32();
-        var h = doc.RootElement.GetProperty("frameHeight").GetInt32();
-        var durations = doc.RootElement.GetProperty("durationsMs").EnumerateArray().Select(e => e.GetInt32()).ToList();
+        var root = doc.RootElement;
+        var w = root.GetProperty("frameWidth").GetInt32();
+        var h = root.GetProperty("frameHeight").GetInt32();
+        var durations = root.GetProperty("durationsMs").EnumerateArray().Select(e => e.GetInt32()).ToList();
 
         using var png = asm.GetManifestResourceStream("ClaudeDeck.Animations.claude-spinner.png")
                         ?? throw new InvalidOperationException("Animation manquante.");
         using var strip = SKBitmap.Decode(png) ?? throw new InvalidDataException("Bande d'animation illisible.");
-        var frames = new List<Sprite>();
-        for (var i = 0; i < durations.Count; i++)
+        var glyphCount = strip.Width / w;
+        var glyphs = new List<Sprite>();
+        for (var i = 0; i < glyphCount; i++)
         {
             using var frame = new SKBitmap(new SKImageInfo(w, h, SKColorType.Rgba8888, SKAlphaType.Premul));
             using (var c = new SKCanvas(frame))
@@ -77,9 +80,15 @@ public sealed class SpriteAnimation
                 c.Clear(SKColors.Transparent);
                 c.DrawBitmap(strip, SKRect.Create(i * w, 0, w, h), SKRect.Create(0, 0, w, h));
             }
-            frames.Add(new Sprite(w, h, frame.Bytes));
+            glyphs.Add(new Sprite(w, h, frame.Bytes));
         }
-        return new SpriteAnimation(frames, durations);
+
+        var sequence = root.TryGetProperty("sequence", out var seq)
+            ? seq.EnumerateArray().Select(e => e.GetInt32()).ToList()
+            : Enumerable.Range(0, durations.Count).ToList();
+        if (sequence.Count != durations.Count || sequence.Any(i => i < 0 || i >= glyphs.Count))
+            throw new InvalidDataException("Séquence d'animation incohérente.");
+        return new SpriteAnimation(sequence.Select(i => glyphs[i]).ToList(), durations);
     }
 
     /// <summary>Charge un GIF animé quelconque (images composées selon leurs dépendances), ou null en cas d'échec.</summary>
