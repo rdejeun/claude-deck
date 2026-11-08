@@ -8,9 +8,10 @@ using Microsoft.Win32;
 namespace ClaudeDeck.App;
 
 /// <summary>
-/// Installation « utilisateur » (aucun droit administrateur) :
-/// copie de l'exécutable dans %LOCALAPPDATA%\ClaudeDeck, démarrage avec Windows (clé Run de HKCU),
-/// hooks et status line dans ~/.claude/settings.json.
+/// Intégration Claude Code : hooks et status line dans ~/.claude/settings.json, pointant vers l'exécutable
+/// à son emplacement actuel. Volontairement, ClaudeDeck ne se recopie nulle part et ne s'inscrit au démarrage
+/// de Windows que sur demande explicite (menu) : ces comportements automatiques ressemblent trop, pour un
+/// antivirus, à ceux d'un logiciel malveillant.
 /// </summary>
 internal sealed class AppInstaller : IHostActions
 {
@@ -22,15 +23,8 @@ internal sealed class AppInstaller : IHostActions
 
     public AppInstaller(ConfigStore config) => _config = config;
 
-    public static string InstallDirectory =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClaudeDeck");
-
-    public static string InstalledExePath => Path.Combine(InstallDirectory, "claude-deck.exe");
-
-    public static string CurrentExePath => Environment.ProcessPath ?? InstalledExePath;
-
-    public static bool RunningFromInstallLocation =>
-        string.Equals(Path.GetFullPath(CurrentExePath), Path.GetFullPath(InstalledExePath), StringComparison.OrdinalIgnoreCase);
+    public static string CurrentExePath =>
+        Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "claude-deck.exe");
 
     public bool IntegrationInstalled => _settings.IsInstalled();
 
@@ -40,7 +34,7 @@ internal sealed class AppInstaller : IHostActions
     /// </summary>
     public static string StatusLineCommand()
     {
-        var exe = Path.GetFullPath(InstalledExePath);
+        var exe = Path.GetFullPath(CurrentExePath);
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         if (exe.StartsWith(home + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
         {
@@ -55,7 +49,6 @@ internal sealed class AppInstaller : IHostActions
     {
         try
         {
-            CopySelf();
             string? previous;
             var result = _settings.Install(_config.Current, StatusLineCommand(), out previous);
             if (previous is not null)
@@ -67,7 +60,8 @@ internal sealed class AppInstaller : IHostActions
                     c.StatusLine.OriginalStatusLineJson = previous;
                 });
             }
-            SetAutostart(true);
+            // Si le démarrage automatique était actif, il suit l'exécutable s'il a été déplacé.
+            if (AutostartEnabled) SetAutostart(true);
 
             var msg = $"Intégration installée dans {_settings.SettingsPath}.";
             if (result.BackupPath is not null) msg += $" Sauvegarde : {Path.GetFileName(result.BackupPath)}.";
@@ -92,8 +86,7 @@ internal sealed class AppInstaller : IHostActions
                 c.StatusLine.ChainCommand = null;
                 c.StatusLine.OriginalStatusLineJson = null;
             });
-            SetAutostart(false);
-            var msg = "Intégration retirée de settings.json et démarrage automatique désactivé.";
+            var msg = "Intégration retirée de settings.json.";
             foreach (var n in result.Notes) msg += " " + n;
             return msg;
         }
@@ -117,13 +110,24 @@ internal sealed class AppInstaller : IHostActions
         }
     }
 
-    /// <summary>Copie l'exécutable courant à son emplacement d'installation (si on ne s'y exécute pas déjà).</summary>
-    private static void CopySelf()
+    /// <summary>
+    /// L'intégration est installée mais la status line désigne un autre exécutable (fichier déplacé ou nouvelle version
+    /// décompressée ailleurs) : il faut réinstaller l'intégration.
+    /// </summary>
+    public bool IntegrationPointsElsewhere()
     {
-        if (RunningFromInstallLocation) return;
-        Directory.CreateDirectory(InstallDirectory);
-        File.Copy(CurrentExePath, InstalledExePath, overwrite: true);
-        Log.Info($"Exécutable copié vers {InstalledExePath}");
+        try
+        {
+            if (!_settings.IsInstalled() || !File.Exists(_settings.SettingsPath)) return false;
+            var root = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(_settings.SettingsPath),
+                documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip });
+            var cmd = root?["statusLine"]?["command"]?.GetValue<string>();
+            return cmd is not null && cmd.Contains("claude-deck", StringComparison.OrdinalIgnoreCase) && cmd != StatusLineCommand();
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     public static bool AutostartEnabled
@@ -138,7 +142,7 @@ internal sealed class AppInstaller : IHostActions
     public static void SetAutostart(bool enabled)
     {
         using var key = Registry.CurrentUser.CreateSubKey(RunKey);
-        if (enabled) key.SetValue(RunValue, $"\"{InstalledExePath}\"");
+        if (enabled) key.SetValue(RunValue, $"\"{CurrentExePath}\"");
         else key.DeleteValue(RunValue, throwOnMissingValue: false);
     }
 }

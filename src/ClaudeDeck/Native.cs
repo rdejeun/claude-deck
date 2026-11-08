@@ -195,18 +195,13 @@ internal static class Native
     [DllImport("kernel32.dll")]
     private static extern uint GetCurrentThreadId();
 
-    [DllImport("user32.dll")]
-    private static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
-
     private const int SW_RESTORE = 9;
-    private const byte VK_MENU = 0x12;
-    private const uint KEYEVENTF_EXTENDEDKEY = 0x1;
-    private const uint KEYEVENTF_KEYUP = 0x2;
 
     /// <summary>
     /// Met une fenêtre au premier plan malgré les restrictions de Windows sur le vol de focus
-    /// (un processus en arrière-plan n'y a normalement pas droit) :
-    /// essai direct, puis rattachement à la file d'entrée du premier plan, puis simulation d'un appui sur Alt.
+    /// (un processus en arrière-plan n'y a normalement pas droit) : essai direct, puis rattachement à la file
+    /// d'entrée du premier plan. Pas de saisie clavier synthétique (heuristique « keylogger » des antivirus) :
+    /// en cas de refus, Windows fait clignoter le bouton de la fenêtre dans la barre des tâches.
     /// </summary>
     public static bool Activate(IntPtr hwnd)
     {
@@ -229,12 +224,7 @@ internal static class Native
             }
             if (GetForegroundWindow() == hwnd) return true;
         }
-
-        // Dernier recours : un appui « Alt » synthétique rend à notre processus le droit de changer le premier plan.
-        keybd_event(VK_MENU, 0, KEYEVENTF_EXTENDEDKEY, UIntPtr.Zero);
-        keybd_event(VK_MENU, 0, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, UIntPtr.Zero);
-        SetForegroundWindow(hwnd);
-        return GetForegroundWindow() == hwnd;
+        return false;
     }
 
     // ───────────── Console (commandes en ligne d'une application WinExe) ─────────────

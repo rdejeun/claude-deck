@@ -23,25 +23,40 @@ jobs:
       - name: Tests
         run: dotnet test tests/ClaudeDeck.Tests -c Release
 
-      - name: Publication (exe unique win-x64)
-        run: dotnet publish src/ClaudeDeck -c Release -o publish
-
-      - name: Archive
+      # Deux variantes, publiées en dossier classique (pas d'exe unique compressé, mal vu des antivirus).
+      - name: Publication
         shell: pwsh
         run: |
-          Copy-Item README.md, LICENSE, THIRD-PARTY-NOTICES.md publish/
-          Compress-Archive -Path publish/* -DestinationPath claude-deck-win-x64.zip
+          dotnet publish src/ClaudeDeck -c Release -p:SelfContained=false -o out/claude-deck-light
+          dotnet publish src/ClaudeDeck -c Release -p:SelfContained=true  -o out/claude-deck-portable
+          foreach ($v in "light", "portable") {
+            Copy-Item README.md, LICENSE, THIRD-PARTY-NOTICES.md "out/claude-deck-$v/"
+            Compress-Archive -Path "out/claude-deck-$v/*" -DestinationPath "out/claude-deck-$v-win-x64.zip"
+          }
+          $lines = Get-ChildItem out/*.zip, out/claude-deck-*/claude-deck.exe | ForEach-Object {
+            "{0}  {1}" -f (Get-FileHash $_ -Algorithm SHA256).Hash.ToLower(), ($_.FullName.Substring((Resolve-Path out).Path.Length + 1) -replace '\\', '/')
+          }
+          $lines | Set-Content out/SHA256SUMS.txt
+          Get-Content out/SHA256SUMS.txt
 
       - uses: actions/upload-artifact@v4
         with:
-          name: claude-deck-win-x64
-          path: publish/
+          name: claude-deck-light
+          path: out/claude-deck-light/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: claude-deck-portable
+          path: out/claude-deck-portable/
 
       - name: Release (tags v*)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: claude-deck-win-x64.zip
+          files: |
+            out/claude-deck-light-win-x64.zip
+            out/claude-deck-portable-win-x64.zip
+            out/SHA256SUMS.txt
           generate_release_notes: true
 
   linux-tests:

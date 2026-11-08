@@ -29,7 +29,7 @@ Admin API (cost_report) ◄── UsageService ───────────
 | Projet | Rôle |
 |---|---|
 | `src/ClaudeDeck.Core` (net8.0) | Tout le métier, multiplateforme : état, jauges, rendu, HID, serveur HTTP, installateur de `settings.json`. |
-| `src/ClaudeDeck` (net8.0-windows) | Exécutable Windows : icône de notification, focus des fenêtres, DPAPI, démarrage auto, commandes `statusline` / `install` / `uninstall`. |
+| `src/ClaudeDeck` (net8.0-windows) | Exécutable Windows : icône de notification, focus des fenêtres, DPAPI, démarrage auto (sur demande), commandes `statusline` / `install` / `uninstall`. |
 | `src/ClaudeDeck.Sim` | Simulateur multiplateforme (daemon sans matériel, scénario de démo, galerie PNG). |
 | `tests/ClaudeDeck.Tests` | Tests xUnit (machine à états, répartition, jauges, BMP, installateur, serveur HTTP). |
 
@@ -132,7 +132,23 @@ Contrôles : en-tête `Host` ∈ {`127.0.0.1:port`, `localhost:port`}, `Origin` 
 comparaison du jeton à temps constant. Serveur HTTP/1.1 maison (keep-alive, chunked, `Expect: 100-continue`) :
 `HttpListener` exigerait des droits administrateur pour `127.0.0.1` sous Windows.
 
-## 8. Validation sur le matériel (à faire par l'utilisateur)
+## 8. Distribution et antivirus
+
+Binaire non signé : pour limiter les faux positifs heuristiques, ClaudeDeck évite les comportements typiques des
+logiciels malveillants.
+
+| Évité | Remplacé par |
+|---|---|
+| Exécutable unique compressé, extraction de DLL natives dans `%TEMP%` | Publication en dossier classique (variantes « light » framework-dependent et « portable ») |
+| Auto-copie dans `%LOCALAPPDATA%` | Exécution sur place ; l'intégration pointe vers l'emplacement courant, avec alerte si l'exécutable a été déplacé |
+| Inscription automatique dans la clé `Run` | Option explicite du menu |
+| Saisie clavier synthétique (`keybd_event`) pour forcer le premier plan | `SetForegroundWindow` + `AttachThreadInput` ; sinon clignotement dans la barre des tâches |
+
+Restent nécessaires et assumés : lecture de la table TCP et de l'arborescence des processus (identifier la fenêtre
+de la session), DPAPI (clé Admin), lecture optionnelle de `~/.claude/.credentials.json` (source OAuth, désactivée par
+défaut). Piste : signature via un programme gratuit pour projets open source (ex. SignPath Foundation) ou Azure Trusted Signing.
+
+## 9. Validation sur le matériel (à faire par l'utilisateur)
 
 1. Mire de test : orientation correcte sur les 6 touches.
 2. Appuis : chaque touche physique déclenche l'action attendue (focus pour 1-3, rafraîchissement pour 4-6).
@@ -140,7 +156,7 @@ comparaison du jeton à temps constant. Serveur HTTP/1.1 maison (keep-alive, chu
 4. Session CLI dans Windows Terminal et dans VS Code, puis extension VS Code : états, durées, focus.
 5. Permission demandée : la touche clignote orange ; elle repasse au bleu après réponse.
 
-## 9. Pistes v2
+## 10. Pistes v2
 
 Sessions claude.ai/code (extension Firefox ou hooks cloud + relais), extension VS Code pour cibler le bon terminal
 ou onglet, approbation des permissions depuis le deck (hook `PermissionRequest` bloquant), autres modèles de Stream Deck.

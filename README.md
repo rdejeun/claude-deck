@@ -44,20 +44,55 @@ Appuyer sur une jauge force un rafraîchissement. L'écran baisse en veille apr�
 
 ## Installation
 
-1. Téléchargez `claude-deck-win-x64.zip` depuis les [Releases](https://github.com/rdejeun/claude-deck/releases)
-   (ou l'artefact de la dernière exécution de la CI), décompressez, lancez `claude-deck.exe`.
+Deux variantes, dans les [Releases](https://github.com/rdejeun/claude-deck/releases) :
+
+| Variante | Taille | Prérequis |
+|---|---|---|
+| `claude-deck-light-win-x64.zip` (recommandée) | 6 Mo | [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) (`winget install Microsoft.DotNet.DesktopRuntime.8`) |
+| `claude-deck-portable-win-x64.zip` | 68 Mo | aucun (runtime .NET embarqué) |
+
+Ou compilez-le vous-même (voir [Antivirus](#antivirus-et-smartscreen)).
+
+1. Décompressez le zip dans un dossier **définitif** (par ex. `C:\Outils\ClaudeDeck`) et lancez `claude-deck.exe`.
+   ClaudeDeck ne se copie nulle part : Claude Code l'appellera à cet emplacement.
 2. **Quittez le logiciel Stream Deck d'Elgato** s'il est installé (et désactivez son démarrage automatique) :
    il se disputerait l'écran. ClaudeDeck vous prévient s'il le détecte.
-3. Clic droit sur l'icône ClaudeDeck (zone de notification) → **Installer l'intégration Claude Code**. Cela :
-   - copie l'exécutable dans `%LOCALAPPDATA%\ClaudeDeck\` et l'inscrit au démarrage de Windows (clé `Run` de HKCU, sans droits admin) ;
-   - ajoute dans `%USERPROFILE%\.claude\settings.json` des hooks de type `http` vers `http://127.0.0.1:47777/hook`
-     et une status line `claude-deck.exe statusline` (sauvegarde horodatée du fichier avant écriture ;
-     vos hooks existants sont conservés, et votre status line existante continue de s'afficher).
-4. Redémarrez vos sessions Claude Code (les hooks sont lus au démarrage).
-5. Menu → **Mire de test** : chaque touche doit afficher son numéro (1-2-3 en haut), une flèche vers le haut et un carré
+3. Clic droit sur l'icône ClaudeDeck (zone de notification) → **Installer l'intégration Claude Code** : ajoute dans
+   `%USERPROFILE%\.claude\settings.json` des hooks de type `http` vers `http://127.0.0.1:47777/hook` et une status line
+   `claude-deck.exe statusline` (sauvegarde horodatée du fichier avant écriture ; vos hooks existants sont conservés,
+   et votre status line existante continue de s'afficher).
+4. Optionnel : menu → **Démarrer avec Windows** (clé `Run` de HKCU, sans droits administrateur).
+5. Redémarrez vos sessions Claude Code (les hooks sont lus au démarrage).
+6. Menu → **Mire de test** : chaque touche doit afficher son numéro (1-2-3 en haut), une flèche vers le haut et un carré
    rouge en haut à gauche. Sinon, ajustez rotation / miroirs dans les réglages.
 
+Si vous déplacez le dossier ou passez à une nouvelle version, refaites l'étape 3 (ClaudeDeck vous le signale).
 En ligne de commande : `claude-deck.exe install` / `claude-deck.exe uninstall`.
+
+### Antivirus et SmartScreen
+
+ClaudeDeck n'est **pas signé numériquement** (un certificat de signature de code est payant) : un antivirus peut donc
+bloquer le zip ou l'exécutable par simple méfiance envers un programme inconnu (détections « heuristiques » ou « ML »
+du type `Trojan:Win32/Wacatac…!ml`, `Gen:Variant…`, « réputation faible »). Le programme a été conçu pour limiter
+ces faux positifs : pas d'exécutable compressé, pas d'auto-copie, pas d'inscription automatique au démarrage,
+aucune saisie clavier simulée.
+
+Si votre antivirus bloque malgré tout :
+
+- **Compilez depuis les sources** (le plus sûr : vous lisez ce que vous exécutez). Avec le
+  [SDK .NET 8](https://dotnet.microsoft.com/download/dotnet/8.0) (`winget install Microsoft.DotNet.SDK.8`) :
+  ```powershell
+  git clone https://github.com/rdejeun/claude-deck
+  cd claude-deck
+  powershell -ExecutionPolicy Bypass -File .\build.ps1
+  .\publish\claude-deck.exe
+  ```
+- **Vérifiez l'empreinte** du fichier téléchargé avec `SHA256SUMS.txt` de la release :
+  `Get-FileHash .\claude-deck-light-win-x64.zip`.
+- **Signalez le faux positif** à l'éditeur (Microsoft Defender :
+  [microsoft.com/wdsi/filesubmission](https://www.microsoft.com/en-us/wdsi/filesubmission)), puis restaurez le fichier
+  depuis la quarantaine une fois la détection levée. Évitez de désactiver l'antivirus ; une exclusion limitée au seul
+  dossier de ClaudeDeck suffit si vous avez vérifié le code.
 
 ### Réglages (page web locale)
 
@@ -95,7 +130,7 @@ Les pourcentages 5 h / semaine viennent du champ officiel `rate_limits` que Clau
 - Windows Terminal : le focus amène la bonne fenêtre, pas le bon onglet.
 - Console Windows « classique » (conhost) : le focus peut ne pas trouver la fenêtre.
 - Windows peut refuser le changement de premier plan dans certains cas (l'icône de la barre des tâches clignote alors).
-- Exécutable de 83 Mo (runtime .NET embarqué, compressé) : aucun prérequis à installer.
+- Exécutable non signé : voir [Antivirus et SmartScreen](#antivirus-et-smartscreen).
 
 ## Développement
 
@@ -113,8 +148,10 @@ Le simulateur lance le daemon complet sans matériel, avec un scénario de démo
 `http://127.0.0.1:47777/preview`. `--gallery <dossier>` rend chaque état de touche en PNG.
 
 ```bash
-dotnet publish src/ClaudeDeck -c Release -o publish
+dotnet publish src/ClaudeDeck -c Release -p:SelfContained=false -o publish
 ```
+
+Sous Windows, `build.ps1` enchaîne tests et publication (`-Variant light|portable`).
 
 Architecture et protocole : [docs/SPEC.md](docs/SPEC.md).
 

@@ -71,7 +71,14 @@ internal sealed class TrayApplication : ApplicationContext
         _statusTimer.Start();
         RefreshStatus();
 
-        if (firstRun || !_installer.IntegrationInstalled)
+        if (_installer.IntegrationPointsElsewhere())
+        {
+            _tray.ShowBalloonTip(10000, "ClaudeDeck",
+                "L'intégration Claude Code désigne un autre emplacement de claude-deck.exe (fichier déplacé ?). " +
+                "Menu de l'icône → « Installer l'intégration Claude Code » pour la mettre à jour.",
+                ToolTipIcon.Warning);
+        }
+        else if (firstRun || !_installer.IntegrationInstalled)
         {
             _tray.ShowBalloonTip(8000, "ClaudeDeck",
                 "Intégration Claude Code non installée. Cliquez ici pour ouvrir les réglages, ou utilisez le menu de l'icône.",
@@ -86,20 +93,6 @@ internal sealed class TrayApplication : ApplicationContext
         var msg = _installer.Install();
         _autostartItem.Checked = AppInstaller.AutostartEnabled;
         Notify(msg);
-        if (!AppInstaller.RunningFromInstallLocation && File.Exists(AppInstaller.InstalledExePath))
-        {
-            var answer = MessageBox.Show(
-                $"ClaudeDeck a été copié dans {AppInstaller.InstallDirectory}.\nRelancer depuis cet emplacement maintenant ?",
-                "ClaudeDeck", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-            if (answer == DialogResult.Yes)
-            {
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(AppInstaller.InstalledExePath, "--restarted")
-                {
-                    UseShellExecute = false,
-                })?.Dispose();
-                ExitThread();
-            }
-        }
     }
 
     private void ToggleAutostart()

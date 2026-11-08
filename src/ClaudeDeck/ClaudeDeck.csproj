@@ -2,21 +2,29 @@
   <!-- Application Windows : daemon en zone de notification + commandes en ligne (statusline, install, uninstall). -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows10.0.17763.0</TargetFramework>
+    <TargetFramework>net8.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <AssemblyName>claude-deck</AssemblyName>
     <RootNamespace>ClaudeDeck.App</RootNamespace>
     <ApplicationIcon>..\..\assets\claude-deck.ico</ApplicationIcon>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
-    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
-    <!-- Publication : un seul .exe autonome, sans runtime .NET à installer. -->
+    <!--
+      Publication en dossier classique (exe + DLL), PAS en exécutable unique compressé : un .exe qui se décompresse
+      et extrait des DLL natives dans %TEMP% ressemble à un « packer » pour les antivirus.
+      Deux variantes (voir build.ps1 et la CI) :
+        portable : runtime .NET embarqué (SelfContained=true, défaut)
+        léger    : -p:SelfContained=false, nécessite le « .NET 8 Desktop Runtime » de Microsoft
+    -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
-    <PublishSingleFile>true</PublishSingleFile>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <PublishSingleFile>false</PublishSingleFile>
     <PublishReadyToRun>false</PublishReadyToRun>
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <SatelliteResourceLanguages>fr;en</SatelliteResourceLanguages>
+    <!-- Métadonnées de version visibles dans les propriétés du fichier. -->
+    <AssemblyTitle>ClaudeDeck</AssemblyTitle>
+    <Description>ClaudeDeck - moniteur Claude Code pour Stream Deck Mini</Description>
+    <Company>rdejeun (open source, github.com/rdejeun/claude-deck)</Company>
     <DebugType>embedded</DebugType>
     <CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
   </PropertyGroup>
