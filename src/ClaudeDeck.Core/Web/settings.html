@@ -94,9 +94,14 @@
       <label><span>Clé Admin API (sk-ant-admin…) — <span id="keyState">non configurée</span></span>
         <input id="adminKey" type="password" autocomplete="off" placeholder="sk-ant-admin01-…"></label>
       <button class="btn primary" id="saveKey">Enregistrer</button>
+      <button class="btn" id="testKey">Tester</button>
       <button class="btn" id="clearKey">Supprimer</button>
     </div>
-    <p class="note">Stockée chiffrée (DPAPI) dans votre profil Windows. Utilisée uniquement pour <code>GET /v1/organizations/cost_report</code>.</p>
+    <p class="note err" id="keyWarning" hidden></p>
+    <p class="note err" id="apiErrorDetail" hidden></p>
+    <p class="note">Clé <b>Admin</b> (Console → Settings → Admin keys, rôle administrateur de l'organisation requis) — une clé API classique
+      <code>sk-ant-api…</code> est refusée. Stockée chiffrée (DPAPI) dans votre profil Windows, utilisée uniquement pour
+      <code>GET /v1/organizations/cost_report</code>.</p>
     <div class="row" style="margin-top:14px">
       <label><span>Solde affiché dans la Console (Billing), en $</span>
         <input id="balance" type="text" inputmode="decimal" placeholder="ex. 25,00"></label>
@@ -196,6 +201,8 @@ function render(s) {
     $("spendSub").textContent = !s.api.configured ? "clé Admin API requise"
       : s.api.error ? s.api.error
       : `aujourd'hui ${fmtMoney(s.api.todayUsd)}` + (s.api.balanceEstimateUsd != null ? ` · solde ≈ ${fmtMoney(s.api.balanceEstimateUsd)}` : "");
+    $("apiErrorDetail").hidden = !s.api.errorDetail;
+    $("apiErrorDetail").textContent = s.api.errorDetail || "";
   }
   const st = s.settings;
   $("balanceNote").textContent = st.balanceUsd != null
@@ -229,7 +236,27 @@ $("saveSettings").onclick = async () => {
   });
   toast("Réglages enregistrés");
 };
-$("saveKey").onclick = async () => { await api("/admin-key", { key: $("adminKey").value }); $("adminKey").value = ""; toast("Clé enregistrée"); };
+$("adminKey").oninput = () => {
+  const v = $("adminKey").value.trim();
+  const bad = v.length > 8 && !v.startsWith("sk-ant-admin");
+  $("keyWarning").className = "note err";
+  $("keyWarning").hidden = !bad;
+  $("keyWarning").textContent = bad ? "Ce n'est pas une clé Admin (elle devrait commencer par « sk-ant-admin »)." : "";
+};
+$("saveKey").onclick = async () => {
+  const r = JSON.parse(await api("/admin-key", { key: $("adminKey").value }));
+  $("adminKey").value = "";
+  $("keyWarning").className = "note err";
+  $("keyWarning").hidden = !r.warning; $("keyWarning").textContent = r.warning || "";
+  toast(r.warning ? "Clé enregistrée, mais suspecte" : "Clé enregistrée");
+};
+$("testKey").onclick = async () => {
+  toast("Test en cours…");
+  const r = JSON.parse(await api("/admin-key/test", { key: $("adminKey").value || null }));
+  $("keyWarning").hidden = false;
+  $("keyWarning").className = "note " + (r.ok ? "" : "err");
+  $("keyWarning").textContent = r.message;
+};
 $("clearKey").onclick = async () => { await api("/admin-key", { key: null }); toast("Clé supprimée"); };
 $("saveBalance").onclick = async () => { await api("/balance", { balanceUsd: $("balance").value }); $("balance").value = ""; toast("Solde enregistré"); };
 $("clearBalance").onclick = async () => { await api("/balance", { balanceUsd: null }); toast("Solde effacé"); };

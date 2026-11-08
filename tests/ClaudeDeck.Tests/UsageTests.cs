@@ -105,3 +105,44 @@ public class UsageTests
         Assert.Null(BalanceEstimator.Estimate(null, setAt, 0, daily));
     }
 }
+
+public class AdminKeyTests
+{
+    [Theory]
+    [InlineData("  sk-ant-admin01-abc\r\n", "sk-ant-admin01-abc")]
+    [InlineData("\"sk-ant-admin01-abc\"", "sk-ant-admin01-abc")]
+    [InlineData("﻿sk-ant-admin01-​abc", "sk-ant-admin01-abc")]
+    [InlineData("x-api-key: sk-ant-admin01-abc", "sk-ant-admin01-abc")]
+    [InlineData("Bearer sk-ant-admin01-abc", "sk-ant-admin01-abc")]
+    [InlineData("   ", null)]
+    public void Sanitize_key(string raw, string? expected) => Assert.Equal(expected, AdminCostClient.SanitizeKey(raw));
+
+    [Fact]
+    public void Admin_key_prefix()
+    {
+        Assert.True(AdminCostClient.LooksLikeAdminKey("sk-ant-admin01-xyz"));
+        Assert.False(AdminCostClient.LooksLikeAdminKey("sk-ant-api03-xyz"));
+    }
+
+    [Fact]
+    public void Error_label_uses_status_not_body_text()
+    {
+        // Un identifiant de requête contenant « 401 » ne doit pas faire croire à une clé refusée.
+        var ex = AdminApiException.FromResponse(400,
+            """{"type":"error","error":{"type":"invalid_request_error","message":"bad param"},"request_id":"req_0401401"}""");
+        Assert.Equal(400, ex.Status);
+        Assert.Equal("invalid_request_error", ex.ErrorType);
+        Assert.Equal("bad param", ex.ApiMessage);
+        Assert.Equal("requête refusée", ex.ShortLabel);
+    }
+
+    [Fact]
+    public void Explain_401_with_regular_api_key_suggests_admin_key()
+    {
+        var ex = AdminApiException.FromResponse(401, """{"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}}""");
+        Assert.Equal("clé refusée", ex.ShortLabel);
+        var msg = UsageService.Explain(ex, "sk-ant-api03-xyz");
+        Assert.Contains("invalid x-api-key", msg);
+        Assert.Contains("Admin keys", msg);
+    }
+}

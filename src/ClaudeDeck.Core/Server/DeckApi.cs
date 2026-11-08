@@ -185,9 +185,18 @@ public sealed class DeckApi
                 return HttpResponse.Json(State());
 
             case "/admin-key":
+            {
                 if (_usage is null) return HttpResponse.Text("API désactivée", 400);
-                _usage.SetAdminKey(body["key"]?.GetValue<string>());
-                return HttpResponse.Json(State());
+                var warning = _usage.SetAdminKey(Str(body, "key"));
+                return HttpResponse.Json(new JsonObject { ["warning"] = warning }.ToJsonString());
+            }
+
+            case "/admin-key/test":
+            {
+                if (_usage is null) return HttpResponse.Text("API désactivée", 400);
+                var (ok, message) = await _usage.TestAdminKeyAsync(Str(body, "key")).ConfigureAwait(false);
+                return HttpResponse.Json(new JsonObject { ["ok"] = ok, ["message"] = message }.ToJsonString());
+            }
 
             case "/balance":
             {
@@ -213,6 +222,9 @@ public sealed class DeckApi
         }
         return HttpResponse.Empty(404);
     }
+
+    private static string? Str(JsonObject b, string name) =>
+        b[name] is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
 
     private void ApplySettings(JsonObject b)
     {
@@ -279,6 +291,7 @@ public sealed class DeckApi
                 ["balanceEstimateUsd"] = api.BalanceEstimateUsd,
                 ["fetchedAt"] = api.FetchedAt?.ToString("O"),
                 ["error"] = api.Error,
+                ["errorDetail"] = api.ErrorDetail,
             },
             ["settings"] = new JsonObject
             {

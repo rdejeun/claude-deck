@@ -60,12 +60,55 @@ public sealed class UsageService : IDisposable
         _refreshSignal.Release();
     }
 
-    public void SetAdminKey(string? key)
+    /// <summary>Enregistre la clé (nettoyée) puis lance un rafraîchissement. Retourne un avertissement éventuel.</summary>
+    public string? SetAdminKey(string? key)
     {
-        _secrets.Set(AdminKeySecret, string.IsNullOrWhiteSpace(key) ? null : key.Trim());
+        var clean = AdminCostClient.SanitizeKey(key);
+        _secrets.Set(AdminKeySecret, clean);
         lock (_gate) _api = new ApiSpendSnapshot(HasAdminKey, null, null, null, null, null);
         Changed?.Invoke();
         RefreshNow();
+        return clean is not null && !AdminCostClient.LooksLikeAdminKey(clean) ? NotAdminKeyWarning : null;
+    }
+
+    private const string NotAdminKeyWarning =
+        "Cette clé ne commence pas par « sk-ant-admin » : c'est probablement une clé API classique, que l'Admin API refuse. " +
+        "Créez une clé Admin dans la Console : Settings → Admin keys (rôle administrateur de l'organisation requis).";
+
+    /// <summary>Teste la clé enregistrée (ou celle fournie) et renvoie un diagnostic lisible.</summary>
+    public async Task<(bool Ok, string Message)> TestAdminKeyAsync(string? candidate, CancellationToken ct = default)
+    {
+        var key = AdminCostClient.SanitizeKey(candidate) ?? AdminCostClient.SanitizeKey(_secrets.Get(AdminKeySecret));
+        if (string.IsNullOrEmpty(key)) return (false, "Aucune clé enregistrée.");
+        var now = _time.GetUtcNow();
+        try
+        {
+            var days = await _admin.FetchDailyAsync(key, now.AddDays(-1), now, ct).ConfigureAwait(false);
+            return (true, $"Clé acceptée ({days.Count} jour(s) de coûts reçus).");
+        }
+        catch (AdminApiException ex)
+        {
+            return (false, Explain(ex, key));
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            return (false, $"api.anthropic.com injoignable : {ex.Message}");
+        }
+    }
+
+    /// <summary>Message détaillé pour la page de réglages.</summary>
+    internal static string Explain(AdminApiException ex, string key)
+    {
+        var api = ex.ApiMessage is null ? "" : $" — réponse de l'API : « {ex.ApiMessage} »";
+        var hint = ex.Status switch
+        {
+            401 when !AdminCostClient.LooksLikeAdminKey(key) => " " + NotAdminKeyWarning,
+            401 => " La clé Admin est inconnue ou révoquée : vérifiez-la dans Console → Settings → Admin keys, ou créez-en une nouvelle.",
+            403 => " La clé n'a pas les droits nécessaires (clé limitée à un espace de travail, ou compte individuel : l'Admin API exige une organisation).",
+            429 => " Trop d'appels : nouvel essai au prochain cycle.",
+            _ => "",
+        };
+        return $"Admin API : HTTP {ex.Status}{(ex.ErrorType is null ? "" : $" ({ex.ErrorType})")}{api}.{hint}";
     }
 
     /// <summary>Enregistre le solde affiché dans la Console. La dépense du jour déjà connue sert de ligne de base.</summary>
@@ -73,7 +116,7 @@ public sealed class UsageService : IDisposable
     {
         var now = _time.GetUtcNow();
         decimal baseline = 0;
-        if (balanceUsd is not null && _secrets.Get(AdminKeySecret) is { Length: > 0 } key)
+        if (balanceUsd is not null && AdminCostClient.SanitizeKey(_secrets.Get(AdminKeySecret)) is { Length: > 0 } key)
         {
             try
             {
@@ -145,7 +188,8 @@ public sealed class UsageService : IDisposable
 
     private async Task RefreshApiAsync(DeckConfig cfg, DateTimeOffset now, CancellationToken ct)
     {
-        var key = _secrets.Get(AdminKeySecret);
+        // Nettoyée aussi à la lecture : une clé enregistrée avant ce correctif peut contenir des caractères parasites.
+        var key = AdminCostClient.SanitizeKey(_secrets.Get(AdminKeySecret));
         if (string.IsNullOrEmpty(key))
         {
             lock (_gate) _api = new ApiSpendSnapshot(false, null, null, null, null, null);
@@ -170,18 +214,20 @@ public sealed class UsageService : IDisposable
                 _api = new ApiSpendSnapshot(true, spend7, today, balance, now, null);
             }
         }
+        catch (AdminApiException ex)
+        {
+            var detail = Explain(ex, key);
+            Log.Warn(detail);
+            lock (_gate) _api = _api with { Configured = true, Error = ex.ShortLabel, ErrorDetail = detail };
+        }
         catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             Log.Warn($"Admin API : {ex.Message}");
-            lock (_gate) _api = _api with { Configured = true, Error = ShortError(ex) };
+            var label = ex is HttpRequestException or TaskCanceledException ? "hors ligne" : "erreur";
+            lock (_gate) _api = _api with { Configured = true, Error = label, ErrorDetail = $"Admin API : {ex.Message}" };
         }
         Changed?.Invoke();
     }
-
-    private static string ShortError(Exception ex) => ex.Message.Contains("401") ? "clé refusée"
-        : ex.Message.Contains("403") ? "accès refusé"
-        : ex is HttpRequestException or TaskCanceledException ? "hors ligne"
-        : "erreur";
 
     public void Dispose()
     {

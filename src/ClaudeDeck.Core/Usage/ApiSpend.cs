@@ -16,16 +16,16 @@ public sealed class AdminCostClient
     public AdminCostClient(HttpClient http) => _http = http;
 
     /// <summary>Retourne les coûts quotidiens depuis <paramref name="fromDayUtc"/> (inclus) jusqu'à maintenant, toutes pages confondues.</summary>
+    /// <exception cref="AdminApiException">Réponse d'erreur de l'API (statut, type et message d'erreur).</exception>
     public async Task<IReadOnlyList<DailyCost>> FetchDailyAsync(string adminKey, DateTimeOffset fromDayUtc, DateTimeOffset nowUtc, CancellationToken ct)
     {
         var result = new List<DailyCost>();
         string? page = null;
         var start = fromDayUtc.UtcDateTime.Date;
-        var end = nowUtc.UtcDateTime.Date.AddDays(1);
         for (var guard = 0; guard < 50; guard++)
         {
+            // Pas de « ending_at » : il est facultatif et une date future pourrait être refusée.
             var url = $"{BaseUrl}?starting_at={Uri.EscapeDataString(start.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture))}" +
-                      $"&ending_at={Uri.EscapeDataString(end.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture))}" +
                       "&bucket_width=1d&limit=31";
             if (page is not null) url += $"&page={Uri.EscapeDataString(page)}";
 
@@ -36,8 +36,7 @@ public sealed class AdminCostClient
 
             using var resp = await _http.SendAsync(req, ct).ConfigureAwait(false);
             var body = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-            if (!resp.IsSuccessStatusCode)
-                throw new HttpRequestException($"Admin API : HTTP {(int)resp.StatusCode} {Truncate(body)}");
+            if (!resp.IsSuccessStatusCode) throw AdminApiException.FromResponse((int)resp.StatusCode, body);
 
             using var doc = JsonDocument.Parse(body);
             var (items, hasMore, next) = ParsePage(doc.RootElement);
@@ -47,6 +46,28 @@ public sealed class AdminCostClient
         }
         return result;
     }
+
+    /// <summary>
+    /// Nettoie une clé collée : espaces, retours à la ligne, guillemets, caractères invisibles,
+    /// préfixes « x-api-key: » ou « Bearer ».
+    /// </summary>
+    public static string? SanitizeKey(string? raw)
+    {
+        if (raw is null) return null;
+        var sb = new System.Text.StringBuilder(raw.Length);
+        foreach (var ch in raw)
+        {
+            if (char.IsWhiteSpace(ch) || char.IsControl(ch) || ch is '"' or '\'' or '\u200B' or '\u200C' or '\u200D' or '\uFEFF') continue;
+            sb.Append(ch);
+        }
+        var key = sb.ToString();
+        foreach (var prefix in new[] { "x-api-key:", "Bearer" })
+            if (key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) key = key[prefix.Length..];
+        return key.Length == 0 ? null : key;
+    }
+
+    /// <summary>Une clé Admin API commence par « sk-ant-admin ». Une clé API classique (sk-ant-api…) est refusée par ces routes.</summary>
+    public static bool LooksLikeAdminKey(string key) => key.StartsWith("sk-ant-admin", StringComparison.Ordinal);
 
     /// <summary>Analyse une page de cost_report. Les montants sont des chaînes décimales en cents.</summary>
     internal static (List<DailyCost> Items, bool HasMore, string? NextPage) ParsePage(JsonElement root)
@@ -80,17 +101,64 @@ public sealed class AdminCostClient
         return (items, hasMore, next);
     }
 
-    private static string Truncate(string s) => s.Length > 200 ? s[..200] + "…" : s;
+}
+
+/// <summary>Erreur renvoyée par l'Admin API, avec le statut HTTP et le message d'erreur Anthropic.</summary>
+public sealed class AdminApiException : Exception
+{
+    public AdminApiException(int status, string? errorType, string? apiMessage)
+        : base($"HTTP {status}{(errorType is null ? "" : " " + errorType)}{(apiMessage is null ? "" : " : " + apiMessage)}")
+    {
+        Status = status;
+        ErrorType = errorType;
+        ApiMessage = apiMessage;
+    }
+
+    public int Status { get; }
+    public string? ErrorType { get; }
+    public string? ApiMessage { get; }
+
+    /// <summary>Analyse un corps d'erreur {"type":"error","error":{"type":…,"message":…}}.</summary>
+    public static AdminApiException FromResponse(int status, string body)
+    {
+        string? type = null, message = null;
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            var err = doc.RootElement.Obj("error");
+            type = err?.Str("type");
+            message = err?.Str("message");
+        }
+        catch (JsonException)
+        {
+            message = body.Length > 200 ? body[..200] + "…" : body;
+        }
+        return new AdminApiException(status, type, message);
+    }
+
+    /// <summary>Libellé court pour la touche (≈ 14 caractères).</summary>
+    public string ShortLabel => Status switch
+    {
+        401 => "clé refusée",
+        403 => "accès refusé",
+        400 or 404 or 422 => "requête refusée",
+        429 => "trop d'appels",
+        >= 500 => "API indisponible",
+        _ => $"erreur {Status}",
+    };
 }
 
 /// <summary>État affiché sur la touche « API ».</summary>
+/// <param name="Error">Libellé court (touche).</param>
+/// <param name="ErrorDetail">Explication complète (page de réglages).</param>
 public sealed record ApiSpendSnapshot(
     bool Configured,
     decimal? Spend7dUsd,
     decimal? TodayUsd,
     decimal? BalanceEstimateUsd,
     DateTimeOffset? FetchedAt,
-    string? Error);
+    string? Error,
+    string? ErrorDetail = null);
 
 public static class BalanceEstimator
 {
