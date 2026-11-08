@@ -143,6 +143,6 @@ public class AdminKeyTests
         Assert.Equal("clé refusée", ex.ShortLabel);
         var msg = UsageService.Explain(ex, "sk-ant-api03-xyz");
         Assert.Contains("invalid x-api-key", msg);
-        Assert.Contains("Admin keys", msg);
+        Assert.Contains("clé personnelle", msg);
     }
 }

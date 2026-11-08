@@ -101,6 +101,10 @@ sessions suivies, jauges, luminosité, veille, orientation, et :
 
 - **Clé Admin API** (`sk-ant-admin…`, Console → Settings → Admin keys) : stockée chiffrée par DPAPI dans votre profil
   Windows, utilisée uniquement pour `GET /v1/organizations/cost_report`.
+  La page *Admin keys* n'apparaît que dans un **compte d'organisation**, pour le rôle **admin** ou **propriétaire** :
+  un compte individuel doit d'abord créer son organisation (Console → Settings → Organization).
+  Une **clé personnelle** (*Linked account* = vous) **non limitée à un espace de travail** est aussi acceptée par l'Admin API.
+  Sans clé, décochez « Touche API » dans les réglages.
 - **Solde** : aucune API publique ne fournit le solde de crédit prépayé. Saisissez le montant affiché dans la Console
   (Billing) après chaque recharge ; ClaudeDeck affiche ensuite `solde ≈ saisi − dépense mesurée depuis`.
 

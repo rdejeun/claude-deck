@@ -72,8 +72,12 @@ public sealed class UsageService : IDisposable
     }
 
     private const string NotAdminKeyWarning =
-        "Cette clé ne commence pas par « sk-ant-admin » : c'est probablement une clé API classique, que l'Admin API refuse. " +
-        "Créez une clé Admin dans la Console : Settings → Admin keys (rôle administrateur de l'organisation requis).";
+        "Ce n'est pas une clé Admin (sk-ant-admin…). Elle ne fonctionnera que s'il s'agit d'une clé personnelle (« Linked account » = vous) " +
+        "NON limitée à un espace de travail, dans un compte d'organisation, avec le rôle admin ou propriétaire.";
+
+    internal const string AccountHint =
+        "L'Admin API n'existe pas pour les comptes individuels : créez d'abord l'organisation dans Console → Settings → Organization " +
+        "(platform.claude.com/settings/organization), puis une clé dans Settings → Admin keys (rôle admin ou propriétaire requis).";
 
     /// <summary>Teste la clé enregistrée (ou celle fournie) et renvoie un diagnostic lisible.</summary>
     public async Task<(bool Ok, string Message)> TestAdminKeyAsync(string? candidate, CancellationToken ct = default)
@@ -103,8 +107,8 @@ public sealed class UsageService : IDisposable
         var hint = ex.Status switch
         {
             401 when !AdminCostClient.LooksLikeAdminKey(key) => " " + NotAdminKeyWarning,
-            401 => " La clé Admin est inconnue ou révoquée : vérifiez-la dans Console → Settings → Admin keys, ou créez-en une nouvelle.",
-            403 => " La clé n'a pas les droits nécessaires (clé limitée à un espace de travail, ou compte individuel : l'Admin API exige une organisation).",
+            401 => " La clé Admin est inconnue, expirée ou révoquée : vérifiez-la dans Console → Settings → Admin keys, ou créez-en une nouvelle.",
+            403 => " La clé n'a pas les droits nécessaires (clé limitée à un espace de travail, rôle insuffisant ou compte individuel). " + AccountHint,
             429 => " Trop d'appels : nouvel essai au prochain cycle.",
             _ => "",
         };
