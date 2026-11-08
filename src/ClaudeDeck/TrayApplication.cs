@@ -27,8 +27,8 @@ internal sealed class TrayApplication : ApplicationContext
         _installer = new AppInstaller(config);
         _host = new DeckHost(config, platform, _installer, useHardware: true);
 
-        _iconNormal = MakeIcon(Color.FromArgb(96, 165, 250));
-        _iconAlert = MakeIcon(Color.FromArgb(249, 115, 22));
+        _iconNormal = MakeIcon(Color.FromArgb(255, 122, 61));
+        _iconAlert = MakeIcon(Color.FromArgb(59, 130, 246));
         _iconOffline = MakeIcon(Color.FromArgb(107, 114, 128));
 
         _statusItem = new ToolStripMenuItem("Démarrage…") { Enabled = false };
@@ -77,6 +77,13 @@ internal sealed class TrayApplication : ApplicationContext
                 "L'intégration Claude Code désigne un autre emplacement de claude-deck.exe (fichier déplacé ?). " +
                 "Menu de l'icône → « Installer l'intégration Claude Code » pour la mettre à jour.",
                 ToolTipIcon.Warning);
+        }
+        else if (_installer.MissingHookEvents() is { Count: > 0 } missing)
+        {
+            _tray.ShowBalloonTip(10000, "ClaudeDeck",
+                $"Nouvelle version : l'intégration Claude Code doit être mise à jour ({string.Join(", ", missing)}). " +
+                "Menu de l'icône → « Installer l'intégration Claude Code ».",
+                ToolTipIcon.Info);
         }
         else if (firstRun || !_installer.IntegrationInstalled)
         {

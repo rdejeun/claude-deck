@@ -37,6 +37,9 @@ public sealed record KeyView
     public string? Title { get; init; }
     /// <summary>Texte principal.</summary>
     public string? Main { get; init; }
+    /// <summary>Texte principal en graisse normale (ex. nom du modèle) au lieu de gras.</summary>
+    public bool MainRegular { get; init; }
+
     /// <summary>Ligne du bas, discrète.</summary>
     public string? Sub { get; init; }
 

@@ -174,3 +174,18 @@ public class SessionTrackerTests
         Assert.Empty(t.Snapshot());
     }
 }
+
+public class ModelTrackingTests
+{
+    [Fact]
+    public void Model_comes_from_session_start_then_model_switch()
+    {
+        var t = new SessionTracker(new FakeTime());
+        t.HandleHook(J.Hook("a", "SessionStart", new { source = "startup", model = "claude-opus-5-5" }));
+        Assert.Equal("Opus 5.5", t.Snapshot()[0].Model);
+        t.HandleHook(J.Hook("a", "PostModelSwitch", new { from_model = "claude-opus-5-5", to_model = "claude-sonnet-5-5" }));
+        Assert.Equal("Sonnet 5.5", t.Snapshot()[0].Model);
+        t.HandleHook(J.Hook("a", "SessionStart", new { source = "clear" })); // pas de modèle : conservé
+        Assert.Equal("Sonnet 5.5", t.Snapshot()[0].Model);
+    }
+}

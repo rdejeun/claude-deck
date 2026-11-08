@@ -10,6 +10,7 @@
   <ItemGroup>
     <EmbeddedResource Include="..\..\assets\fonts\Inter-Bold.otf" LogicalName="ClaudeDeck.Fonts.Inter-Bold.otf" />
     <EmbeddedResource Include="..\..\assets\fonts\Inter-SemiBold.otf" LogicalName="ClaudeDeck.Fonts.Inter-SemiBold.otf" />
+    <EmbeddedResource Include="..\..\assets\fonts\Inter-Medium.otf" LogicalName="ClaudeDeck.Fonts.Inter-Medium.otf" />
     <EmbeddedResource Include="Web\*.html" LogicalName="ClaudeDeck.Web.%(Filename)%(Extension)" />
     <EmbeddedResource Include="..\..\assets\animations\claude-spinner.png" LogicalName="ClaudeDeck.Animations.claude-spinner.png" />
     <EmbeddedResource Include="..\..\assets\animations\claude-spinner.json" LogicalName="ClaudeDeck.Animations.claude-spinner.json" />

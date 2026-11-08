@@ -246,7 +246,7 @@ public sealed class DeckController : IDisposable
         }
 
         var plan = _plan.Snapshot();
-        views[KeyFiveHour] = _builder.PlanWindow("SESSION · 5 H", plan.FiveHour, now, weekly: false);
+        views[KeyFiveHour] = _builder.PlanWindow("SESSION", plan.FiveHour, now, weekly: false);
         views[KeySevenDay] = _builder.PlanWindow("SEMAINE", plan.SevenDay, now, weekly: true);
         views[KeyBottomRight] = cfg.Display.BottomRightKey == BottomRightKeys.Api && _usage is not null
             ? _builder.Api(_usage.Api, cfg.Api.LowBalanceUsd, now)

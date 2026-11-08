@@ -7,7 +7,7 @@ Moniteur d'activité **Claude Code** sur **Stream Deck Mini** (6 touches), pour 
 ┌───────────────┬───────────────┬───────────────┐
 │  session 1    │  session 2    │  session 3 +N │   ← sessions Claude Code (couleur = état, appui = focus)
 ├───────────────┼───────────────┼───────────────┤
-│ SESSION · 5 H │   SEMAINE     │     logo      │   ← limites du forfait Pro/Max
+│    SESSION    │   SEMAINE     │     logo      │   ← limites du forfait Pro/Max
 │ 62 % → 18:43  │ 23 % → jeu.   │  (ou API 7 j) │
 └───────────────┴───────────────┴───────────────┘
 ```
@@ -23,9 +23,9 @@ Une session garde sa touche tant qu'elle reste affichée ; la pastille « +N » 
 
 | État | Couleur | Déclencheur (hooks Claude Code) |
 |---|---|---|
-| Au repos | gris | `SessionStart`, Échap (`Notification` idle) |
-| Travaille | bleu, astérisque animé de Claude Code, outil en cours, durée du tour | `UserPromptSubmit`, `PreToolUse`, `PostToolUse` |
-| **Autoriser ? / Question** | **orange clignotant** | `PermissionRequest`, `Notification` (permission, elicitation), `AskUserQuestion` |
+| Au repos | bleu nuit | `SessionStart`, Échap (`Notification` idle) |
+| Travaille | orange très sombre, astérisque animé, outil en cours (ou modèle, ex. « Opus 5.5 »), durée du tour | `UserPromptSubmit`, `PreToolUse`, `PostToolUse` |
+| **Autoriser ? / Question** | **bleu clignotant** | `PermissionRequest`, `Notification` (permission, elicitation), `AskUserQuestion` |
 | Terminé | vert, « il y a 3 min » | `Stop` |
 | Compaction | violet | `PreCompact` → `PostCompact` |
 | Erreur API | rouge | `StopFailure` |
@@ -35,7 +35,8 @@ ou Windows Terminal) et acquitte l'état « terminé ».
 
 **Ligne du bas — jauges**
 
-1. **Session (5 h)** du forfait Pro/Max : % consommé et heure de réinitialisation.
+1. **Session** (fenêtre de 5 h) du forfait Pro/Max : % consommé et heure de réinitialisation.
+   Couleur de la jauge : bleu jusqu'à 90 %, orange jusqu'à 95 %, rouge au-delà.
 2. **Semaine** : % consommé et jour + heure de réinitialisation.
 3. **Logo** (par défaut) : un motif d'étoile rayonnante, ou votre propre image (réglage « Image du logo »,
    PNG/JPG redimensionné automatiquement). Le logo officiel de Claude, marque d'Anthropic, n'est pas fourni dans ce

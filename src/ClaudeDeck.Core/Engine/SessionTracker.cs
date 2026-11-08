@@ -84,6 +84,7 @@ public sealed class SessionTracker
         {
             case "SessionStart":
                 // Une reprise ou un /clear repart au repos ; un démarrage après compaction aussi.
+                s.Model = ModelName.Format(p.Str("model")) ?? s.Model;
                 SetState(s, SessionState.Idle, now);
                 s.CurrentTool = null;
                 s.ActiveSubagents = 0;
@@ -153,6 +154,10 @@ public sealed class SessionTracker
             case "StopFailure":
                 EndTurn(s, now);
                 SetState(s, SessionState.Error, now);
+                break;
+
+            case "PostModelSwitch":
+                s.Model = ModelName.Format(p.Str("to_model")) ?? s.Model;
                 break;
 
             case "SubagentStart":

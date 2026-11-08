@@ -28,6 +28,9 @@ internal sealed class AppInstaller : IHostActions
 
     public bool IntegrationInstalled => _settings.IsInstalled();
 
+    /// <summary>Hooks ajoutés par une version plus récente de ClaudeDeck et pas encore installés.</summary>
+    public IReadOnlyList<string> MissingHookEvents() => _settings.MissingEvents();
+
     /// <summary>
     /// Commande de status line. Git Bash interprète les « \ » : on utilise des « / », et « ~ » quand c'est possible
     /// (il est développé après le découpage en mots, donc sans souci d'espaces dans le nom d'utilisateur).

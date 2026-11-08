@@ -294,3 +294,70 @@ public class AnimationTests
         Assert.False(ClaudeDeck.Core.Config.ConfigStore.Migrate(cfg));
     }
 }
+
+public class StyleTests
+{
+    private static readonly DateTimeOffset Now = new(2026, 11, 8, 10, 0, 0, TimeSpan.Zero);
+
+    private static SessionSnapshot S(SessionState st, string? tool = null, string? model = "Opus 5.5") =>
+        new("id", "p", null, null, model, st, Now, WaitReason.Permission, tool, tool, Now.AddSeconds(-30), null, 0, null, null, Now, null);
+
+    [Theory]
+    [InlineData("claude-opus-5-5", "Opus 5.5")]
+    [InlineData("claude-opus-5", "Opus 5")]
+    [InlineData("claude-sonnet-4-5-20250929", "Sonnet 4.5")]
+    [InlineData("claude-3-5-sonnet-20241022", "Sonnet 3.5")]
+    [InlineData("claude-opus-4-6[1m]", "Opus 4.6")]
+    [InlineData("us.anthropic.claude-haiku-4-5-20251001-v1:0", "Haiku 4.5")]
+    [InlineData("claude-fable-5-1", "Fable 5.1")]
+    [InlineData("opus", "Opus")]
+    public void Model_ids_are_humanized(string id, string expected) => Assert.Equal(expected, ModelName.Format(id));
+
+    [Fact]
+    public void Thinking_shows_model_in_regular_weight()
+    {
+        var b = new KeyViewBuilder(TimeZoneInfo.Utc);
+        var v = b.Session(S(SessionState.Working), Now, 0);
+        Assert.Equal("Opus 5.5", v.Main);
+        Assert.True(v.MainRegular);
+        var withTool = b.Session(S(SessionState.Working, "Bash"), Now, 0);
+        Assert.Equal("Terminal", withTool.Main);
+        Assert.False(withTool.MainRegular);
+        Assert.Equal("Claude", b.Session(S(SessionState.Working, model: null), Now, 0).Main);
+    }
+
+    [Fact]
+    public void State_colors_follow_the_palette()
+    {
+        var b = new KeyViewBuilder(TimeZoneInfo.Utc);
+        static bool Orangeish(Rgb c) => c.R > c.G && c.G >= c.B && c.R < 0x60;  // orange très sombre
+        static bool Blueish(Rgb c) => c.B > c.R && c.B > c.G;
+        static bool Greenish(Rgb c) => c.G > c.R && c.G > c.B;
+        Assert.True(Orangeish(b.Session(S(SessionState.Working), Now, 0).Background));
+        Assert.True(Blueish(b.Session(S(SessionState.Idle), Now, 0).Background));
+        Assert.True(Blueish(b.Session(S(SessionState.Waiting), Now, 0).Background));
+        Assert.True(Blueish(b.Session(S(SessionState.Waiting), Now, 500).Background));
+        Assert.True(Greenish(b.Session(S(SessionState.Done), Now, 0).Background));
+    }
+
+    [Theory]
+    [InlineData(10, 0x3B82F6)]
+    [InlineData(89.9, 0x3B82F6)]
+    [InlineData(90, 0xF97316)]
+    [InlineData(94.9, 0xF97316)]
+    [InlineData(95, 0xEF4444)]
+    public void Gauge_colors(double pct, uint rgb)
+    {
+        var b = new KeyViewBuilder(TimeZoneInfo.Utc);
+        Assert.Equal(Rgb.Hex(rgb), b.PlanWindow("SESSION", new RateWindow(pct, Now.AddHours(1), Now, "x"), Now, false).BarColor);
+    }
+
+    [Fact]
+    public void Spinner_steps_have_equal_duration()
+    {
+        var a = SpriteAnimation.LoadEmbeddedClaudeSpinner();
+        Assert.Equal(1400, a.TotalMs);
+        var step = a.TotalMs / a.Frames.Count;
+        for (var i = 0; i < a.Frames.Count; i++) Assert.Same(a.Frames[i], a.FrameAt(i * step + step / 2));
+    }
+}

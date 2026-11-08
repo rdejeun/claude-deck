@@ -35,7 +35,7 @@ public sealed class ClaudeSettingsInstaller
         "PreToolUse", "PostToolUse", "PostToolUseFailure",
         "PermissionRequest", "PermissionDenied", "Notification",
         "Stop", "StopFailure", "SubagentStart", "SubagentStop",
-        "PreCompact", "PostCompact",
+        "PreCompact", "PostCompact", "PostModelSwitch",
     ];
 
     private readonly string _settingsPath;
@@ -137,6 +137,25 @@ public sealed class ClaudeSettingsInstaller
 
         var backup = Save(root);
         return new Result(true, backup, notes);
+    }
+
+    /// <summary>
+    /// Événements que ClaudeDeck écoute mais qui n'ont pas encore de hook ClaudeDeck (intégration installée par une
+    /// version précédente). Vide si l'intégration est absente ou complète.
+    /// </summary>
+    public IReadOnlyList<string> MissingEvents()
+    {
+        try
+        {
+            if (!File.Exists(_settingsPath)) return [];
+            var root = Load();
+            if (root["hooks"] is not JsonObject hooks || !hooks.Any(kv => kv.Value is JsonArray a && a.Any(IsOurEntry))) return [];
+            return HookEvents.Where(e => hooks[e] is not JsonArray arr || !arr.Any(IsOurEntry)).ToList();
+        }
+        catch
+        {
+            return [];
+        }
     }
 
     /// <summary>L'intégration est-elle présente (au moins un hook ClaudeDeck) ?</summary>

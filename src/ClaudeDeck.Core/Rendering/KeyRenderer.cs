@@ -8,6 +8,7 @@ public sealed class KeyRenderer : IDisposable
 {
     private readonly SKTypeface _bold;
     private readonly SKTypeface _semi;
+    private readonly SKTypeface _medium;
     private readonly int _size;
 
     public KeyRenderer(int size = 80)
@@ -15,6 +16,7 @@ public sealed class KeyRenderer : IDisposable
         _size = size;
         _bold = LoadFont("ClaudeDeck.Fonts.Inter-Bold.otf");
         _semi = LoadFont("ClaudeDeck.Fonts.Inter-SemiBold.otf");
+        _medium = LoadFont("ClaudeDeck.Fonts.Inter-Medium.otf");
     }
 
     public int Size => _size;
@@ -50,7 +52,7 @@ public sealed class KeyRenderer : IDisposable
             if (v.BottomStripe is { } stripe)
             {
                 using var p = Fill(stripe);
-                canvas.DrawRect(0, 76, 80, 4, p);
+                canvas.DrawRect(0, 78, 80, 2, p);
             }
             if (v.Badge is { } badge) DrawBadge(canvas, badge, v.BadgeColor);
         }
@@ -67,22 +69,24 @@ public sealed class KeyRenderer : IDisposable
         var titleRight = v.Badge is null ? 76f : 56f;
         if (v.Title is { } t) DrawText(c, t, _semi, 12f, 9f, 4f, titleRight, 15f, v.Foreground, SKTextAlign.Left);
 
+        var mainFace = v.MainRegular ? _medium : _bold;
         if (v.IconSprite is { } sprite)
         {
             DrawSprite(c, sprite, 40f, 33f, 28f);
-            if (v.Main is { } m) DrawText(c, m, _bold, 13.5f, 10f, 3f, 77f, 58f, v.Foreground, SKTextAlign.Center);
+            if (v.Main is { } m) DrawText(c, m, mainFace, 13.5f, 10f, 3f, 77f, 59f, v.Foreground, SKTextAlign.Center);
         }
         else if (v.Icon != KeyIcon.None)
         {
             DrawIcon(c, v.Icon, 40f, 33f, 10.5f, v.Accent, v.SpinnerPhase);
-            if (v.Main is { } m) DrawText(c, m, _bold, 13.5f, 10f, 3f, 77f, 58f, v.Foreground, SKTextAlign.Center);
+            if (v.Main is { } m) DrawText(c, m, mainFace, 13.5f, 10f, 3f, 77f, 59f, v.Foreground, SKTextAlign.Center);
         }
         else if (v.Main is { } m)
         {
             DrawText(c, m, _bold, 22f, 12f, 3f, 77f, 47f, v.Foreground, SKTextAlign.Center);
         }
 
-        if (v.Sub is { } sub) DrawText(c, sub, _semi, 11f, 8f, 3f, 77f, 73f, v.Muted, SKTextAlign.Center);
+        // Ligne du bas (chrono) au plus près du bord inférieur.
+        if (v.Sub is { } sub) DrawText(c, sub, _semi, 11f, 8f, 3f, 77f, 76f, v.Muted, SKTextAlign.Center);
     }
 
     private void DrawGaugeLayout(SKCanvas c, KeyView v)
@@ -310,5 +314,6 @@ public sealed class KeyRenderer : IDisposable
     {
         _bold.Dispose();
         _semi.Dispose();
+        _medium.Dispose();
     }
 }

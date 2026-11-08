@@ -19,10 +19,13 @@ public sealed class KeyViewBuilder
     private static class C
     {
         public static readonly Rgb Black = Rgb.Hex(0x000000);
-        public static readonly Rgb IdleBg = Rgb.Hex(0x1C1D22), IdleFg = Rgb.Hex(0xC4C7CC), IdleAccent = Rgb.Hex(0x6B7280);
-        public static readonly Rgb WorkBg = Rgb.Hex(0x0B2545), WorkFg = Rgb.Hex(0xE8F0FE), WorkAccent = Rgb.Hex(0x60A5FA);
-        public static readonly Rgb WaitOnBg = Rgb.Hex(0xF97316), WaitOnFg = Rgb.Hex(0x1A0D00);
-        public static readonly Rgb WaitOffBg = Rgb.Hex(0x431A03), WaitOffFg = Rgb.Hex(0xFDBA74), WaitOffAccent = Rgb.Hex(0xFB923C);
+        // Au repos (pause) : bleu nuit fixe.
+        public static readonly Rgb IdleBg = Rgb.Hex(0x0E1B33), IdleFg = Rgb.Hex(0xC7D5F0), IdleAccent = Rgb.Hex(0x6E8CC7), IdleMuted = Rgb.Hex(0x8FA5CC);
+        // Travaille : orange très sombre et saturé.
+        public static readonly Rgb WorkBg = Rgb.Hex(0x3A1300), WorkFg = Rgb.Hex(0xFFE9DD), WorkAccent = Rgb.Hex(0xFF7A3D), WorkMuted = Rgb.Hex(0xFFB088);
+        // En attente d'une réponse : bleu, clignotant (vif / sombre).
+        public static readonly Rgb WaitOnBg = Rgb.Hex(0x1D5FE0), WaitOnFg = Rgb.Hex(0xFFFFFF);
+        public static readonly Rgb WaitOffBg = Rgb.Hex(0x0B1F4A), WaitOffFg = Rgb.Hex(0xBFD4FF), WaitOffAccent = Rgb.Hex(0x60A5FA);
         public static readonly Rgb DoneBg = Rgb.Hex(0x0E3B23), DoneFg = Rgb.Hex(0xDCFCE7), DoneAccent = Rgb.Hex(0x4ADE80);
         public static readonly Rgb CompactBg = Rgb.Hex(0x2E1065), CompactFg = Rgb.Hex(0xEDE9FE), CompactAccent = Rgb.Hex(0xA78BFA);
         public static readonly Rgb ErrBg = Rgb.Hex(0x450A0A), ErrFg = Rgb.Hex(0xFEE2E2), ErrAccent = Rgb.Hex(0xF87171);
@@ -31,6 +34,7 @@ public sealed class KeyViewBuilder
         public static readonly Rgb Green = Rgb.Hex(0x22C55E), Amber = Rgb.Hex(0xF59E0B), Red = Rgb.Hex(0xEF4444);
         public static readonly Rgb LowBalanceBg = Rgb.Hex(0x3B0A0A);
         public static readonly Rgb Orange = Rgb.Hex(0xF97316);
+        public static readonly Rgb Blue = Rgb.Hex(0x3B82F6);
     }
 
     // ───────────────────────────── Sessions ─────────────────────────────
@@ -56,12 +60,14 @@ public sealed class KeyViewBuilder
             {
                 SessionState.Working => new KeyView
                 {
-                    Background = C.WorkBg, Foreground = C.WorkFg, Accent = C.WorkAccent, Muted = Rgb.Hex(0x93C5FD),
+                    Background = C.WorkBg, Foreground = C.WorkFg, Accent = C.WorkAccent, Muted = C.WorkMuted,
                     Title = title,
                     Icon = sprite is null ? KeyIcon.Spinner : KeyIcon.None,
                     SpinnerPhase = sprite is null ? phase : 0,
                     IconSprite = sprite,
                     Main = WorkingLabel(s),
+                    // Sans outil en cours, on affiche le modèle, en graisse normale.
+                    MainRegular = s.CurrentTool is null && s.ActiveSubagents == 0,
                     Sub = s.TurnStartedAt is { } t ? Duration(now - t) : null,
                 },
                 SessionState.Waiting => new KeyView
@@ -95,7 +101,7 @@ public sealed class KeyViewBuilder
                 },
                 _ => new KeyView
                 {
-                    Background = C.IdleBg, Foreground = C.IdleFg, Accent = C.IdleAccent, Muted = Rgb.Hex(0x80858C),
+                    Background = C.IdleBg, Foreground = C.IdleFg, Accent = C.IdleAccent, Muted = C.IdleMuted,
                     Title = title, Icon = KeyIcon.Idle, Main = "Au repos",
                     Sub = s.ContextUsedPercent is { } ctx ? $"contexte {ctx:0} %" : s.Model,
                 },
@@ -107,8 +113,8 @@ public sealed class KeyViewBuilder
             view = view with
             {
                 Badge = $"+{hiddenCount}",
-                BadgeColor = hiddenWaiting > 0 ? C.Orange : Rgb.Hex(0x4B5563),
-                BottomStripe = hiddenWaiting > 0 ? C.Orange : null,
+                BadgeColor = hiddenWaiting > 0 ? C.Blue : Rgb.Hex(0x4B5563),
+                BottomStripe = hiddenWaiting > 0 ? C.Blue : null,
             };
         }
         return view;
@@ -121,7 +127,7 @@ public sealed class KeyViewBuilder
             var label = ToolLabel(tool);
             return s.ActiveSubagents > 0 ? $"{label} ·{s.ActiveSubagents}" : label;
         }
-        return s.ActiveSubagents > 0 ? $"Agents ×{s.ActiveSubagents}" : "Réflexion";
+        return s.ActiveSubagents > 0 ? $"Agents ×{s.ActiveSubagents}" : s.Model ?? "Claude";
     }
 
     /// <summary>Nom d'outil court et lisible.</summary>
@@ -187,7 +193,8 @@ public sealed class KeyViewBuilder
 
         var stale = now - w.ObservedAt > StaleAfter;
         var pct = w.UsedPercent;
-        var color = stale ? C.StaleBar : pct >= 80 ? C.Red : pct >= 50 ? C.Amber : C.Green;
+        // Bleu jusqu'à 90 %, orange jusqu'à 95 %, rouge au-delà.
+        var color = stale ? C.StaleBar : pct >= 95 ? C.Red : pct >= 90 ? C.Orange : C.Blue;
         return baseView with
         {
             Main = $"{(stale ? "~" : "")}{pct:0} %",

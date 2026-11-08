@@ -39,7 +39,7 @@ Admin API (cost_report) ◄── UsageService ───────────
 
 Ajoutés à `~/.claude/settings.json` (sans matcher = tous) pour : `SessionStart`, `SessionEnd`, `UserPromptSubmit`,
 `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `PermissionDenied`, `Notification`, `Stop`,
-`StopFailure`, `SubagentStart`, `SubagentStop`, `PreCompact`, `PostCompact`.
+`StopFailure`, `SubagentStart`, `SubagentStop`, `PreCompact`, `PostCompact`, `PostModelSwitch`.
 
 ```json
 { "hooks": [ { "type": "http", "url": "http://127.0.0.1:47777/hook", "timeout": 3,
@@ -76,6 +76,7 @@ affiche la status line préexistante de l'utilisateur (exécutée via Git Bash, 
 | `StopFailure` | → Erreur |
 | `PreCompact` / `PostCompact` | → Compaction / retour à Travaille ou Au repos |
 | `SubagentStart` / `SubagentStop` | compteur d'agents (≥ 0) |
+| `SessionStart.model`, `PostModelSwitch.to_model` | modèle affiché (« claude-opus-5-5 » → « Opus 5.5 ») ; la status line (`model.display_name`) le met aussi à jour |
 | `SessionEnd` | suppression |
 | appui sur la touche | Terminé/Erreur → Au repos |
 | maintenance (10 s) | Terminé/Erreur → Au repos après 30 min ; suppression si processus mort ou 12 h sans événement |
@@ -92,7 +93,7 @@ puis activité récente ; affectations collantes ; « +N » (orange si une sessi
 | Bas à droite : logo (défaut) | Motif vectoriel, ou image de l'utilisateur (`display.logoImagePath`). Appui : ouvre `display.logoUrl` (défaut `https://claude.ai/new`, http/https seulement) via le navigateur par défaut ; avec `display.logoUrlNewWindow`, lance l'exécutable du navigateur (lu dans `UrlAssociations\https\UserChoice`) avec `-new-window` / `--new-window` | — |
 | Bas à droite : API 7 j (option `display.bottomRightKey = "api"`) | `GET /v1/organizations/cost_report?bucket_width=1d` (clé Admin ou clé personnelle sans espace de travail ; compte d'organisation requis ; montants en cents) | 15 min, ou appui |
 
-Seuils de couleur : vert < 50 %, ambre < 80 %, rouge ≥ 80 %. Donnée de plus de 30 min : grisée et préfixée `~`.
+Seuils de couleur : bleu < 90 %, orange < 95 %, rouge ≥ 95 %. Donnée de plus de 30 min : grisée et préfixée `~`.
 Fenêtre dont `resets_at` est passé : « réinitialisé ».
 
 **Solde estimé** = solde saisi − (dépense depuis le début du jour UTC de saisie − dépense de ce jour déjà constatée

@@ -63,4 +63,17 @@ public class InstallerTests : IDisposable
         Assert.Null(root["statusLine"]);
         Assert.True(inst.IsInstalled());
     }
+
+    [Fact]
+    public void Missing_events_are_detected_for_older_installs()
+    {
+        var inst = new ClaudeSettingsInstaller(SettingsPath);
+        Assert.Empty(inst.MissingEvents()); // rien d'installé
+        inst.Install(new DeckConfig(), null, out _);
+        Assert.Empty(inst.MissingEvents());
+        var root = JsonNode.Parse(File.ReadAllText(SettingsPath))!.AsObject();
+        root["hooks"]!.AsObject().Remove("PostModelSwitch");
+        File.WriteAllText(SettingsPath, root.ToJsonString());
+        Assert.Equal(new[] { "PostModelSwitch" }, inst.MissingEvents());
+    }
 }
