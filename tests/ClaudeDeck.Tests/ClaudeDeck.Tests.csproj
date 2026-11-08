@@ -14,6 +14,9 @@
     <ProjectReference Include="..\..\src\ClaudeDeck.Core\ClaudeDeck.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="test-anim.gif" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
 </Project>

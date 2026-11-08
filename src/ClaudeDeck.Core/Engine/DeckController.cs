@@ -32,6 +32,7 @@ public sealed class DeckController : IDisposable
     private readonly KeyRenderer _renderer = new();
     private readonly KeyViewBuilder _builder = new();
     private readonly LogoImageCache _logos = new(80);
+    private readonly WorkingAnimationCache _animations = new();
     private readonly SlotAllocator _slots = new(SessionSlots);
     private readonly object _gate = new();
 
@@ -40,7 +41,6 @@ public sealed class DeckController : IDisposable
     private readonly SessionSnapshot?[] _slotSessions = new SessionSnapshot?[SessionSlots];
     private Timer? _tick;
     private Timer? _sweep;
-    private long _frame;
     private int _ticking;
     private DeviceWriter? _writer;
     private DateTimeOffset _lastActivity;
@@ -88,7 +88,7 @@ public sealed class DeckController : IDisposable
 
     public void Start()
     {
-        var fps = Math.Clamp(_config.Current.Display.AnimationFps, 1, 10);
+        var fps = Math.Clamp(_config.Current.Display.AnimationFps, 1, 30);
         _tick = new Timer(_ => Tick(), null, 0, 1000 / fps);
         _sweep = new Timer(_ => Sweep(), null, TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10));
     }
@@ -187,12 +187,11 @@ public sealed class DeckController : IDisposable
         try
         {
             var cfg = _config.Current;
-            var fps = Math.Clamp(cfg.Display.AnimationFps, 1, 10);
             var now = _time.GetUtcNow();
-            var frame = _frame++;
             _builder.StaleAfter = TimeSpan.FromMinutes(Math.Max(1, cfg.PlanUsage.StaleAfterMinutes));
+            _builder.WorkingAnimation = _animations.Get(cfg.Display);
 
-            var views = BuildViews(now, frame, fps, cfg);
+            var views = BuildViews(now, cfg);
             var changed = false;
             for (var k = 0; k < KeyCount; k++)
             {
@@ -223,8 +222,9 @@ public sealed class DeckController : IDisposable
         }
     }
 
-    internal KeyView[] BuildViews(DateTimeOffset now, long frame, int fps, DeckConfig cfg)
+    internal KeyView[] BuildViews(DateTimeOffset now, DeckConfig cfg)
     {
+        var animMs = now.ToUnixTimeMilliseconds();
         var views = new KeyView[KeyCount];
         if (now < _testPatternUntil)
         {
@@ -241,7 +241,7 @@ public sealed class DeckController : IDisposable
         {
             // Le compteur de sessions masquées s'affiche sur la dernière touche de la ligne.
             var last = i == SessionSlots - 1;
-            views[i] = _builder.Session(alloc.Slots[i], now, frame, fps,
+            views[i] = _builder.Session(alloc.Slots[i], now, animMs,
                 last ? alloc.HiddenCount : 0, last ? alloc.HiddenWaiting : 0);
         }
 

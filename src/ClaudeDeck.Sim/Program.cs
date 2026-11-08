@@ -108,7 +108,10 @@ static class Gallery
     {
         Directory.CreateDirectory(dir);
         var now = DateTimeOffset.UtcNow;
-        var b = new ClaudeDeck.Core.Rendering.KeyViewBuilder(TimeZoneInfo.Utc);
+        var b = new ClaudeDeck.Core.Rendering.KeyViewBuilder(TimeZoneInfo.Utc)
+        {
+            WorkingAnimation = ClaudeDeck.Core.Rendering.SpriteAnimation.LoadEmbeddedClaudeSpinner(),
+        };
         using var r = new ClaudeDeck.Core.Rendering.KeyRenderer(80);
         ClaudeDeck.Core.Model.SessionSnapshot S(ClaudeDeck.Core.Model.SessionState st, string? tool = null,
             ClaudeDeck.Core.Model.WaitReason wr = ClaudeDeck.Core.Model.WaitReason.None, int agents = 0, double? ctx = null) =>
@@ -116,18 +119,18 @@ static class Gallery
                 now.AddSeconds(-252), null, agents, ctx, null, now, null);
         var views = new (string Name, ClaudeDeck.Core.Rendering.KeyView View)[]
         {
-            ("01-idle", b.Session(S(ClaudeDeck.Core.Model.SessionState.Idle, ctx: 34), now, 0, 4)),
-            ("02-working-thinking", b.Session(S(ClaudeDeck.Core.Model.SessionState.Working), now, 1, 4)),
-            ("03-working-bash", b.Session(S(ClaudeDeck.Core.Model.SessionState.Working, "Bash"), now, 2, 4)),
-            ("04-working-agents", b.Session(S(ClaudeDeck.Core.Model.SessionState.Working, agents: 2), now, 3, 4)),
-            ("05-waiting-permission-on", b.Session(S(ClaudeDeck.Core.Model.SessionState.Waiting, "Bash", ClaudeDeck.Core.Model.WaitReason.Permission), now, 0, 4)),
-            ("06-waiting-permission-off", b.Session(S(ClaudeDeck.Core.Model.SessionState.Waiting, "Bash", ClaudeDeck.Core.Model.WaitReason.Permission), now, 2, 4)),
-            ("07-waiting-question", b.Session(S(ClaudeDeck.Core.Model.SessionState.Waiting, "AskUserQuestion", ClaudeDeck.Core.Model.WaitReason.Question), now, 0, 4)),
-            ("08-done", b.Session(S(ClaudeDeck.Core.Model.SessionState.Done), now, 0, 4)),
-            ("09-compacting", b.Session(S(ClaudeDeck.Core.Model.SessionState.Compacting), now, 0, 4)),
-            ("10-error", b.Session(S(ClaudeDeck.Core.Model.SessionState.Error), now, 0, 4)),
-            ("11-hidden-waiting", b.Session(S(ClaudeDeck.Core.Model.SessionState.Working, "Edit"), now, 0, 4, 2, 1)),
-            ("12-empty", b.Session(null, now, 0, 4)),
+            ("01-idle", b.Session(S(ClaudeDeck.Core.Model.SessionState.Idle, ctx: 34), now, 0)),
+            ("02-working-thinking", b.Session(S(ClaudeDeck.Core.Model.SessionState.Working), now, 250)),
+            ("03-working-bash", b.Session(S(ClaudeDeck.Core.Model.SessionState.Working, "Bash"), now, 500)),
+            ("04-working-agents", b.Session(S(ClaudeDeck.Core.Model.SessionState.Working, agents: 2), now, 750)),
+            ("05-waiting-permission-on", b.Session(S(ClaudeDeck.Core.Model.SessionState.Waiting, "Bash", ClaudeDeck.Core.Model.WaitReason.Permission), now, 0)),
+            ("06-waiting-permission-off", b.Session(S(ClaudeDeck.Core.Model.SessionState.Waiting, "Bash", ClaudeDeck.Core.Model.WaitReason.Permission), now, 500)),
+            ("07-waiting-question", b.Session(S(ClaudeDeck.Core.Model.SessionState.Waiting, "AskUserQuestion", ClaudeDeck.Core.Model.WaitReason.Question), now, 0)),
+            ("08-done", b.Session(S(ClaudeDeck.Core.Model.SessionState.Done), now, 0)),
+            ("09-compacting", b.Session(S(ClaudeDeck.Core.Model.SessionState.Compacting), now, 0)),
+            ("10-error", b.Session(S(ClaudeDeck.Core.Model.SessionState.Error), now, 0)),
+            ("11-hidden-waiting", b.Session(S(ClaudeDeck.Core.Model.SessionState.Working, "Edit"), now, 0, 2, 1)),
+            ("12-empty", b.Session(null, now, 0)),
             ("13-five-hour", b.PlanWindow("SESSION · 5 H", new(62.4, now.AddMinutes(135), now, "statusline"), now, false)),
             ("14-week-high", b.PlanWindow("SEMAINE", new(87, now.AddDays(2), now, "statusline"), now, true)),
             ("15-week-stale", b.PlanWindow("SEMAINE", new(41, now.AddDays(2), now.AddHours(-3), "statusline"), now, true)),
@@ -141,6 +144,14 @@ static class Gallery
         };
         foreach (var (name, view) in views)
             File.WriteAllBytes(Path.Combine(dir, name + ".png"), ClaudeDeck.Core.Rendering.KeyRenderer.ToPng(r.Render(view)));
+
+        // Animation « travaille » : une image toutes les 50 ms sur un cycle complet.
+        var anim = Path.Combine(dir, "anim");
+        Directory.CreateDirectory(anim);
+        var working = S(ClaudeDeck.Core.Model.SessionState.Working, "Bash");
+        for (var t = 0; t < 1400; t += 50)
+            File.WriteAllBytes(Path.Combine(anim, $"working-{t:0000}.png"),
+                ClaudeDeck.Core.Rendering.KeyRenderer.ToPng(r.Render(b.Session(working, now, t))));
         Console.WriteLine($"{views.Length} images écrites dans {dir}");
     }
 }

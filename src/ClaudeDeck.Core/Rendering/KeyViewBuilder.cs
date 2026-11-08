@@ -35,9 +35,11 @@ public sealed class KeyViewBuilder
 
     // ───────────────────────────── Sessions ─────────────────────────────
 
-    /// <param name="frame">Compteur d'images de l'animation (clignotement, spinner).</param>
-    /// <param name="fps">Images par seconde de l'animation.</param>
-    public KeyView Session(SessionSnapshot? s, DateTimeOffset now, long frame, int fps, int hiddenCount = 0, int hiddenWaiting = 0)
+    /// <summary>Animation de l'état « travaille ». Null = anneau vectoriel.</summary>
+    public SpriteAnimation? WorkingAnimation { get; set; }
+
+    /// <param name="animMs">Horloge d'animation en millisecondes (clignotement, spinner, GIF).</param>
+    public KeyView Session(SessionSnapshot? s, DateTimeOffset now, long animMs, int hiddenCount = 0, int hiddenWaiting = 0)
     {
         KeyView view;
         if (s is null)
@@ -47,15 +49,18 @@ public sealed class KeyViewBuilder
         else
         {
             var title = s.DisplayName;
-            var blinkOn = fps <= 1 || (frame / Math.Max(1, fps / 2)) % 2 == 0; // ~1 Hz
-            var phase = fps <= 0 ? 0 : frame % fps / (double)fps;
+            var blinkOn = animMs / 500 % 2 == 0; // 1 Hz
+            var phase = animMs % 1000 / 1000.0;
+            var sprite = WorkingAnimation?.FrameAt(animMs);
             view = s.State switch
             {
                 SessionState.Working => new KeyView
                 {
                     Background = C.WorkBg, Foreground = C.WorkFg, Accent = C.WorkAccent, Muted = Rgb.Hex(0x93C5FD),
                     Title = title,
-                    Icon = KeyIcon.Spinner, SpinnerPhase = phase,
+                    Icon = sprite is null ? KeyIcon.Spinner : KeyIcon.None,
+                    SpinnerPhase = sprite is null ? phase : 0,
+                    IconSprite = sprite,
                     Main = WorkingLabel(s),
                     Sub = s.TurnStartedAt is { } t ? Duration(now - t) : null,
                 },

@@ -62,7 +62,7 @@ public class RenderingTests
         {
             var s = new SessionSnapshot("id", "projet", null, null, null, state, Now, WaitReason.Permission, "Bash", "Bash",
                 Now.AddMinutes(-2), null, 0, 30, null, Now, null);
-            var img = r.Render(b.Session(s, Now, 0, 4, 1, 1));
+            var img = r.Render(b.Session(s, Now, 0, 1, 1));
             Assert.Equal(80 * 80 * 4, img.Rgba.Length);
             for (var i = 3; i < img.Rgba.Length; i += 4) Assert.Equal(255, img.Rgba[i]);
         }
@@ -76,7 +76,7 @@ public class RenderingTests
         var b = new KeyViewBuilder(TimeZoneInfo.Utc);
         var s = new SessionSnapshot("id", "p", null, null, null, SessionState.Waiting, Now, WaitReason.Permission, null, null,
             null, null, 0, null, null, Now, null);
-        Assert.NotEqual(b.Session(s, Now, 0, 4).Background, b.Session(s, Now, 2, 4).Background);
+        Assert.NotEqual(b.Session(s, Now, 0).Background, b.Session(s, Now, 500).Background);
     }
 
     [Theory]
@@ -221,5 +221,75 @@ public class LogoKeyTests
         {
             Directory.Delete(dir, recursive: true);
         }
+    }
+}
+
+
+public class AnimationTests
+{
+    private static readonly DateTimeOffset Now = new(2026, 11, 8, 10, 0, 0, TimeSpan.Zero);
+
+    [Fact]
+    public void Embedded_claude_spinner_loads_with_transparency()
+    {
+        var a = SpriteAnimation.LoadEmbeddedClaudeSpinner();
+        Assert.Equal(21, a.Frames.Count);
+        Assert.Equal(1400, a.TotalMs);
+        Assert.Equal(16, a.Frames[0].Width);
+        Assert.Equal(16, a.Frames[0].Height);
+        // Coin transparent, glyphe opaque quelque part.
+        Assert.Equal(0, a.Frames[0].Pixels[3]);
+        Assert.Contains(a.Frames[0].Pixels.Where((_, i) => i % 4 == 3), alpha => alpha > 200);
+    }
+
+    [Fact]
+    public void Frames_follow_their_own_durations_and_loop()
+    {
+        var f = Enumerable.Range(0, 3).Select(_ => new Sprite(1, 1, new byte[4])).ToList();
+        var a = new SpriteAnimation(f, [100, 50, 200]);
+        Assert.Same(f[0], a.FrameAt(0));
+        Assert.Same(f[0], a.FrameAt(99));
+        Assert.Same(f[1], a.FrameAt(100));
+        Assert.Same(f[2], a.FrameAt(150));
+        Assert.Same(f[2], a.FrameAt(349));
+        Assert.Same(f[0], a.FrameAt(350));
+        Assert.Same(f[1], a.FrameAt(350 * 10 + 120));
+    }
+
+    [Fact]
+    public void Working_key_uses_animation_and_changes_over_time()
+    {
+        var b = new KeyViewBuilder(TimeZoneInfo.Utc) { WorkingAnimation = SpriteAnimation.LoadEmbeddedClaudeSpinner() };
+        var s = new SessionSnapshot("id", "p", null, null, null, SessionState.Working, Now, WaitReason.None, "Bash", "Bash",
+            Now, null, 0, null, null, Now, null);
+        var v0 = b.Session(s, Now, 0);
+        var v1 = b.Session(s, Now, 700);
+        Assert.NotNull(v0.IconSprite);
+        Assert.Equal(KeyIcon.None, v0.Icon);
+        Assert.NotSame(v0.IconSprite, v1.IconSprite);
+        Assert.Equal(v0, b.Session(s, Now, 30)); // même image → vue identique, pas de nouveau rendu
+
+        using var r = new KeyRenderer();
+        Assert.NotEqual(r.Render(v0).Hash, r.Render(v1).Hash);
+    }
+
+    [Fact]
+    public void Gif_loader_reads_frames_and_durations()
+    {
+        var a = SpriteAnimation.LoadGif(Path.Combine(AppContext.BaseDirectory, "test-anim.gif"));
+        Assert.NotNull(a);
+        Assert.Equal(3, a!.Frames.Count);
+        Assert.Equal(300, a.TotalMs);
+        Assert.Null(SpriteAnimation.LoadGif("/inexistant.gif"));
+    }
+
+    [Fact]
+    public void Old_config_is_migrated_to_smooth_animation()
+    {
+        var cfg = new ClaudeDeck.Core.Config.DeckConfig { SchemaVersion = 0 };
+        cfg.Display.AnimationFps = 4;
+        Assert.True(ClaudeDeck.Core.Config.ConfigStore.Migrate(cfg));
+        Assert.Equal(12, cfg.Display.AnimationFps);
+        Assert.False(ClaudeDeck.Core.Config.ConfigStore.Migrate(cfg));
     }
 }

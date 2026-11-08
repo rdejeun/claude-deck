@@ -67,7 +67,12 @@ public sealed class KeyRenderer : IDisposable
         var titleRight = v.Badge is null ? 76f : 56f;
         if (v.Title is { } t) DrawText(c, t, _semi, 12f, 9f, 4f, titleRight, 15f, v.Foreground, SKTextAlign.Left);
 
-        if (v.Icon != KeyIcon.None)
+        if (v.IconSprite is { } sprite)
+        {
+            DrawSprite(c, sprite, 40f, 33f, 28f);
+            if (v.Main is { } m) DrawText(c, m, _bold, 13.5f, 10f, 3f, 77f, 58f, v.Foreground, SKTextAlign.Center);
+        }
+        else if (v.Icon != KeyIcon.None)
         {
             DrawIcon(c, v.Icon, 40f, 33f, 10.5f, v.Accent, v.SpinnerPhase);
             if (v.Main is { } m) DrawText(c, m, _bold, 13.5f, 10f, 3f, 77f, 58f, v.Foreground, SKTextAlign.Center);
@@ -123,6 +128,35 @@ public sealed class KeyRenderer : IDisposable
         using (var bg = Fill(color)) c.DrawRoundRect(rect, 7, 7, bg);
         using var fg = Fill(Rgb.Hex(0xFFFFFF));
         c.DrawText(text, rect.MidX, 14f, SKTextAlign.Center, font, fg);
+    }
+
+    /// <summary>
+    /// Dessine une image d'animation centrée, ajustée dans un carré de <paramref name="box"/> px.
+    /// Les petites images (≤ box) sont dessinées à l'échelle 1, pixel pour pixel, pour rester nettes.
+    /// </summary>
+    private static void DrawSprite(SKCanvas c, Sprite s, float cx, float cy, float box)
+    {
+        var info = new SKImageInfo(s.Width, s.Height, SKColorType.Rgba8888, SKAlphaType.Premul);
+        var handle = System.Runtime.InteropServices.GCHandle.Alloc(s.Pixels, System.Runtime.InteropServices.GCHandleType.Pinned);
+        try
+        {
+            using var pixmap = new SKPixmap(info, handle.AddrOfPinnedObject(), info.RowBytes);
+            using var image = SKImage.FromPixels(pixmap);
+            var scale = Math.Min(box / s.Width, box / s.Height);
+            if (scale > 1f && s.Width >= box / 2) scale = 1f; // pas d'agrandissement flou des images déjà assez grandes
+            var w = s.Width * scale;
+            var h = s.Height * scale;
+            // Alignement sur la grille de pixels à l'échelle 1.
+            var x = scale == 1f ? MathF.Round(cx - w / 2) : cx - w / 2;
+            var y = scale == 1f ? MathF.Round(cy - h / 2) : cy - h / 2;
+            var sampling = scale == 1f ? new SKSamplingOptions(SKFilterMode.Nearest) : new SKSamplingOptions(SKCubicResampler.Mitchell);
+            using var paint = new SKPaint { IsAntialias = true };
+            c.DrawImage(image, SKRect.Create(x, y, w, h), sampling, paint);
+        }
+        finally
+        {
+            handle.Free();
+        }
     }
 
     // ───────────── Icônes vectorielles ─────────────

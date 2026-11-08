@@ -110,6 +110,10 @@ VID `0x0FD9`, PID `0x0063` (Mini) ou `0x0090` (Mini MK.2) — liste configurable
 | Réinitialisation | Fonction : `0B 63` |
 | Touches | Entrée : `01 <k1> … <k6>` (0/1) |
 
+Animations : horloge en millisecondes (clignotement 1 Hz, astérisque de Claude Code 21 images / 1,4 s, ou GIF
+personnel décodé par SkiaSharp), rendu à `display.animationFps` (12 par défaut) ; une image n'est renvoyée que si
+la touche a changé.
+
 Image : BMP 24 bits 80 × 80 (lignes de bas en haut, BGR), après rotation 90° anti-horaire puis miroir vertical
 (= transposition). Rotation et miroirs sont configurables et vérifiables avec la mire de test.
 

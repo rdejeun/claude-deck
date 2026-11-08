@@ -241,6 +241,10 @@ public sealed class DeckApi
             if (I("doneFadeMinutes") is { } df) c.Display.DoneFadeMinutes = Math.Clamp(df, 0, 24 * 60);
             if (B("oauthFallback") is { } of) c.PlanUsage.OAuthFallback = of;
             if (Str(b, "bottomRightKey") is BottomRightKeys.Logo or BottomRightKeys.Api) c.Display.BottomRightKey = Str(b, "bottomRightKey")!;
+            if (Str(b, "workingAnimation") is WorkingAnimations.Asterisk or WorkingAnimations.Ring or WorkingAnimations.Gif)
+                c.Display.WorkingAnimation = Str(b, "workingAnimation")!;
+            if (b.ContainsKey("workingAnimationPath"))
+                c.Display.WorkingAnimationPath = string.IsNullOrWhiteSpace(Str(b, "workingAnimationPath")) ? null : Str(b, "workingAnimationPath")!.Trim().Trim('"');
             if (b.ContainsKey("logoUrl"))
             {
                 var url = Str(b, "logoUrl")?.Trim();
@@ -313,6 +317,8 @@ public sealed class DeckApi
                 ["bottomRightKey"] = cfg.Display.BottomRightKey,
                 ["logoImagePath"] = cfg.Display.LogoImagePath,
                 ["logoUrl"] = cfg.Display.LogoUrl,
+                ["workingAnimation"] = cfg.Display.WorkingAnimation,
+                ["workingAnimationPath"] = cfg.Display.WorkingAnimationPath,
                 ["logoUrlNewWindow"] = cfg.Display.LogoUrlNewWindow,
                 ["lowBalanceUsd"] = cfg.Api.LowBalanceUsd,
                 ["balanceUsd"] = cfg.Api.BalanceUsd,

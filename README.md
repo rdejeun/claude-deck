@@ -12,7 +12,7 @@ Moniteur d'activité **Claude Code** sur **Stream Deck Mini** (6 touches), pour 
 └───────────────┴───────────────┴───────────────┘
 ```
 
-![États des touches](docs/images/etats-des-touches.png)
+![États des touches](docs/images/etats-des-touches.png) ![Touche « travaille » animée](docs/images/touche-travaille.gif)
 
 ## Ce que ça affiche
 
@@ -24,7 +24,7 @@ Une session garde sa touche tant qu'elle reste affichée ; la pastille « +N » 
 | État | Couleur | Déclencheur (hooks Claude Code) |
 |---|---|---|
 | Au repos | gris | `SessionStart`, Échap (`Notification` idle) |
-| Travaille | bleu, anneau animé, outil en cours, durée du tour | `UserPromptSubmit`, `PreToolUse`, `PostToolUse` |
+| Travaille | bleu, astérisque animé de Claude Code, outil en cours, durée du tour | `UserPromptSubmit`, `PreToolUse`, `PostToolUse` |
 | **Autoriser ? / Question** | **orange clignotant** | `PermissionRequest`, `Notification` (permission, elicitation), `AskUserQuestion` |
 | Terminé | vert, « il y a 3 min » | `Stop` |
 | Compaction | violet | `PreCompact` → `PostCompact` |
@@ -141,6 +141,8 @@ Les pourcentages 5 h / semaine viennent du champ officiel `rate_limits` que Clau
 - Console Windows « classique » (conhost) : le focus peut ne pas trouver la fenêtre.
 - Windows peut refuser le changement de premier plan dans certains cas (l'icône de la barre des tâches clignote alors).
 - Exécutable non signé : voir [Antivirus et SmartScreen](#antivirus-et-smartscreen).
+- Animation « travaille » : affichage à 12 images/s (réglage `display.animationFps`) ; si le débit USB du Stream Deck
+  ne suit pas, des images sont sautées. Autres choix dans les réglages : anneau, ou votre propre GIF.
 
 ## Développement
 

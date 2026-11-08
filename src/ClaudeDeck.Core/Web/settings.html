@@ -122,6 +122,14 @@
       <label><span>Veille après (minutes, 0 = jamais)</span><input id="dimAfterMinutes" type="number" min="0"></label>
       <label><span>« Terminé » repasse au repos après (min, 0 = jamais)</span><input id="doneFadeMinutes" type="number" min="0"></label>
       <label><span>Alerte solde bas ($)</span><input id="lowBalanceUsd" type="number" min="0" step="0.5"></label>
+      <label><span>Animation « Claude travaille »</span>
+        <select id="workingAnimation">
+          <option value="asterisk">Astérisque de Claude Code</option>
+          <option value="ring">Anneau</option>
+          <option value="gif">GIF personnel</option>
+        </select></label>
+      <label><span>GIF personnel (chemin, si « GIF personnel »)</span>
+        <input id="workingAnimationPath" type="text" placeholder="C:\Images\spinner.gif"></label>
       <label><span>Touche en bas à droite</span>
         <select id="bottomRightKey">
           <option value="logo">Logo</option>
@@ -228,6 +236,8 @@ function render(s) {
     $("bottomRightKey").value = st.bottomRightKey;
     $("logoImagePath").value = st.logoImagePath || "";
     $("logoUrl").value = st.logoUrl || "";
+    $("workingAnimation").value = st.workingAnimation;
+    $("workingAnimationPath").value = st.workingAnimationPath || "";
     $("logoUrlNewWindow").checked = !!st.logoUrlNewWindow;
     $("rotation").value = String(st.rotation);
     for (const k of ["flipHorizontal", "flipVertical", "offWhenLocked", "oauthFallback"]) $(k).checked = !!st[k];
@@ -252,6 +262,7 @@ $("saveSettings").onclick = async () => {
     offWhenLocked: $("offWhenLocked").checked, oauthFallback: $("oauthFallback").checked,
     bottomRightKey: $("bottomRightKey").value, logoImagePath: $("logoImagePath").value,
     logoUrl: $("logoUrl").value, logoUrlNewWindow: $("logoUrlNewWindow").checked,
+    workingAnimation: $("workingAnimation").value, workingAnimationPath: $("workingAnimationPath").value,
   });
   toast("Réglages enregistrés");
 };

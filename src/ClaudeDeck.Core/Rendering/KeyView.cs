@@ -58,6 +58,9 @@ public sealed record KeyView
     /// <summary>Mire de test : numéro de touche et repère d'orientation.</summary>
     public int? TestPatternIndex { get; init; }
 
+    /// <summary>Image d'animation dessinée à la place de l'icône vectorielle (ex. astérisque de Claude Code).</summary>
+    public Sprite? IconSprite { get; init; }
+
     /// <summary>Image fournie par l'utilisateur, affichée telle quelle sur toute la touche.</summary>
     public KeyImage? Image { get; init; }
 }

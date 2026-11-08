@@ -8,6 +8,11 @@ namespace ClaudeDeck.Core.Config;
 /// <summary>Configuration persistée dans <c>%APPDATA%\ClaudeDeck\config.json</c>. Ne contient aucun secret.</summary>
 public sealed class DeckConfig
 {
+    public const int CurrentSchemaVersion = 2;
+
+    /// <summary>Version du format, pour migrer les anciens fichiers.</summary>
+    public int SchemaVersion { get; set; }
+
     /// <summary>Port HTTP local (127.0.0.1) sur lequel Claude Code envoie ses hooks.</summary>
     public int Port { get; set; } = 47777;
 
@@ -35,8 +40,17 @@ public sealed class DisplayConfig
     public bool OffWhenLocked { get; set; } = true;
     /// <summary>Minutes après lesquelles une session « terminée » non consultée repasse au repos. 0 = jamais.</summary>
     public int DoneFadeMinutes { get; set; } = 30;
-    /// <summary>Images par seconde pour les animations (clignotement, activité).</summary>
-    public int AnimationFps { get; set; } = 4;
+    /// <summary>Images par seconde de l'affichage (animations). Le Stream Deck saute des images s'il ne suit pas.</summary>
+    public int AnimationFps { get; set; } = 12;
+
+    /// <summary>
+    /// Animation de l'état « travaille » : <c>asterisk</c> (astérisque de Claude Code, défaut), <c>ring</c> (anneau
+    /// vectoriel) ou <c>gif</c> (fichier <see cref="WorkingAnimationPath"/>).
+    /// </summary>
+    public string WorkingAnimation { get; set; } = WorkingAnimations.Asterisk;
+
+    /// <summary>GIF animé personnel, utilisé quand <see cref="WorkingAnimation"/> vaut <c>gif</c>.</summary>
+    public string? WorkingAnimationPath { get; set; }
 
     /// <summary>
     /// Contenu de la touche en bas à droite : <c>logo</c> (défaut) ou <c>api</c> (dépense via l'Admin API, qui exige
@@ -55,6 +69,13 @@ public sealed class DisplayConfig
     /// Faux (défaut) : ouverture standard de Windows, en général un nouvel onglet.
     /// </summary>
     public bool LogoUrlNewWindow { get; set; } = false;
+}
+
+public static class WorkingAnimations
+{
+    public const string Asterisk = "asterisk";
+    public const string Ring = "ring";
+    public const string Gif = "gif";
 }
 
 public static class BottomRightKeys
@@ -163,6 +184,7 @@ public sealed class ConfigStore
                 if (cfg is not null)
                 {
                     if (string.IsNullOrWhiteSpace(cfg.Token)) cfg.Token = DeckConfig.NewToken();
+                    if (Migrate(cfg)) Save(cfg);
                     return cfg;
                 }
             }
@@ -173,9 +195,19 @@ public sealed class ConfigStore
             try { File.Copy(Path, Path + ".invalide", overwrite: true); } catch { /* ignoré */ }
         }
 
-        var fresh = new DeckConfig();
+        var fresh = new DeckConfig { SchemaVersion = DeckConfig.CurrentSchemaVersion };
         Save(fresh);
         return fresh;
+    }
+
+    /// <summary>Met à niveau une configuration écrite par une version précédente. Retourne vrai si elle a changé.</summary>
+    internal static bool Migrate(DeckConfig cfg)
+    {
+        if (cfg.SchemaVersion >= DeckConfig.CurrentSchemaVersion) return false;
+        // v1 → v2 : animations fluides (l'ancienne valeur par défaut, 4 i/s, était trop lente pour l'astérisque).
+        if (cfg.SchemaVersion < 2 && cfg.Display.AnimationFps == 4) cfg.Display.AnimationFps = 12;
+        cfg.SchemaVersion = DeckConfig.CurrentSchemaVersion;
+        return true;
     }
 
     public void Update(Action<DeckConfig> mutate)
