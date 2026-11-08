@@ -81,7 +81,8 @@ ClaudeDeck n'est **pas signé numériquement** (un certificat de signature de co
 bloquer le zip ou l'exécutable par simple méfiance envers un programme inconnu (détections « heuristiques » ou « ML »
 du type `Trojan:Win32/Wacatac…!ml`, `Gen:Variant…`, « réputation faible »). Le programme a été conçu pour limiter
 ces faux positifs : pas d'exécutable compressé, pas d'auto-copie, pas d'inscription automatique au démarrage,
-aucune saisie clavier simulée.
+aucune saisie clavier simulée, et pas de `createdump.exe` (outil de vidage mémoire du runtime .NET, souvent classé
+« HackTool » ; retiré de la variante portable depuis la v0.2.1).
 
 Si votre antivirus bloque malgré tout :
 

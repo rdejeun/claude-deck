@@ -28,9 +28,14 @@
     <DebugType>embedded</DebugType>
     <CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
   </PropertyGroup>
-  <!-- Les symboles natifs de Skia (80 Mo) n'ont rien à faire dans le livrable. -->
-  <Target Name="RemoveNativePdbs" AfterTargets="Publish">
-    <Delete Files="$(PublishDir)libSkiaSharp.pdb;$(PublishDir)ClaudeDeck.Core.pdb" />
+  <!--
+    Nettoyage du livrable :
+    - symboles natifs de Skia (80 Mo), inutiles ;
+    - createdump.exe (outil de vidage mémoire du runtime .NET, ajouté en mode autonome) : ClaudeDeck n'en a pas
+      besoin, et plusieurs antivirus le signalent comme « HackTool » / PUA car il peut lire la mémoire d'autres processus.
+  -->
+  <Target Name="CleanPublishOutput" AfterTargets="Publish">
+    <Delete Files="$(PublishDir)libSkiaSharp.pdb;$(PublishDir)ClaudeDeck.Core.pdb;$(PublishDir)createdump.exe" />
   </Target>
   <ItemGroup>
     <ProjectReference Include="..\ClaudeDeck.Core\ClaudeDeck.Core.csproj" />
