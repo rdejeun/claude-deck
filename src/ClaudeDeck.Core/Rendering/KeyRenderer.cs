@@ -72,27 +72,30 @@ public sealed class KeyRenderer : IDisposable
             // Centré s'il tient à taille normale, sinon aligné à gauche (réduit jusqu'à 10,5 px puis tronqué).
             using var probe = new SKFont(_semi, 12f);
             var fits = probe.MeasureText(t) <= titleRight - 4f;
-            DrawText(c, t, _semi, 12f, 10.5f, 4f, titleRight, 15f, v.Foreground, fits ? SKTextAlign.Center : SKTextAlign.Left);
+            DrawText(c, t, _semi, 12f, 10.5f, 4f, titleRight, 13.5f, v.Foreground, fits ? SKTextAlign.Center : SKTextAlign.Left);
         }
 
         // Texte principal : gras par défaut ; graisse normale et plus petit pour le nom du modèle.
         var mainFace = v.MainRegular ? _regular : _bold;
         var mainSize = v.MainRegular ? 12f : 13.5f;
+        // Nom du modèle rapproché du chrono, et animation/icône descendue d'autant : plus d'air autour.
+        var mainBaseline = v.MainRegular ? 63f : 59f;
+        var iconY = v.MainRegular ? 35f : 33f;
         if (v.IconSprite is { } sprite)
         {
-            DrawSprite(c, sprite, 40f, 33f, 28f);
-            if (v.Main is { } m) DrawText(c, m, mainFace, mainSize, 9f, 3f, 77f, 59f, v.Foreground, SKTextAlign.Center);
+            DrawSprite(c, sprite, 40f, iconY, 28f);
+            if (v.Main is { } m) DrawText(c, m, mainFace, mainSize, 9f, 3f, 77f, mainBaseline, v.Foreground, SKTextAlign.Center);
         }
         else if (v.Icon != KeyIcon.None && v.Main is null)
         {
-            // Icône seule (ex. « terminé ») : plus grande, à égale distance du titre (bas des lettres ≈ 18 px)
+            // Icône seule (ex. « terminé ») : plus grande, à égale distance du titre (bas des lettres ≈ 16,5 px)
             // et de la ligne du bas (haut des lettres ≈ 67 px).
-            DrawIcon(c, v.Icon, 40f, 42.5f, 15f, v.Accent, v.SpinnerPhase);
+            DrawIcon(c, v.Icon, 40f, 41.5f, 15f, v.Accent, v.SpinnerPhase);
         }
         else if (v.Icon != KeyIcon.None)
         {
-            DrawIcon(c, v.Icon, 40f, 33f, 10.5f, v.Accent, v.SpinnerPhase);
-            if (v.Main is { } m) DrawText(c, m, mainFace, mainSize, 9f, 3f, 77f, 59f, v.Foreground, SKTextAlign.Center);
+            DrawIcon(c, v.Icon, 40f, iconY, 10.5f, v.Accent, v.SpinnerPhase);
+            if (v.Main is { } m) DrawText(c, m, mainFace, mainSize, 9f, 3f, 77f, mainBaseline, v.Foreground, SKTextAlign.Center);
         }
         else if (v.Main is { } m)
         {

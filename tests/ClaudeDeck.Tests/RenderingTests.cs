@@ -77,6 +77,10 @@ public class RenderingTests
         var s = new SessionSnapshot("id", "p", null, null, null, SessionState.Waiting, Now, WaitReason.Permission, null, null,
             null, null, 0, null, null, Now, null);
         Assert.NotEqual(b.Session(s, Now, 0).Background, b.Session(s, Now, 500).Background);
+        // Après 10 s d'attente, plus de clignotement : bleu vif fixe.
+        var later = Now.AddSeconds(11);
+        Assert.Equal(b.Session(s, later, 0).Background, b.Session(s, later, 500).Background);
+        Assert.Equal(b.Session(s, Now, 0).Background, b.Session(s, later, 500).Background);
     }
 
     [Theory]

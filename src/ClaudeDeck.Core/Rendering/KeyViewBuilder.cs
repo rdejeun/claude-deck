@@ -39,6 +39,9 @@ public sealed class KeyViewBuilder
 
     // ───────────────────────────── Sessions ─────────────────────────────
 
+    /// <summary>Durée du clignotement d'une touche en attente (permission, question).</summary>
+    public static readonly TimeSpan BlinkDuration = TimeSpan.FromSeconds(10);
+
     /// <summary>Animation de l'état « travaille ». Null = anneau vectoriel.</summary>
     public SpriteAnimation? WorkingAnimation { get; set; }
 
@@ -54,7 +57,8 @@ public sealed class KeyViewBuilder
         else
         {
             var title = s.DisplayName;
-            var blinkOn = animMs / 500 % 2 == 0; // 1 Hz
+            // Clignotement à 1 Hz pendant les 10 premières secondes d'une attente, puis bleu vif fixe.
+            var blinkOn = now - s.StateSince >= BlinkDuration || animMs / 500 % 2 == 0;
             var phase = (animMs + phaseOffsetMs) % 1000 / 1000.0;
             var sprite = WorkingAnimation?.FrameAt(animMs + phaseOffsetMs);
             view = s.State switch
