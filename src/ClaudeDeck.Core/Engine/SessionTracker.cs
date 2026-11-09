@@ -25,6 +25,13 @@ public sealed class SessionTracker
 
     public SessionTracker(TimeProvider? time = null) => _time = time ?? TimeProvider.System;
 
+    private static bool IsQuestionTool(string? tool) => tool is not null && UserFacingTools.Contains(tool);
+
+    private static bool MentionsQuestion(string? text) =>
+        text is not null && (text.Contains("question", StringComparison.OrdinalIgnoreCase) ||
+                             text.Contains("AskUserQuestion", StringComparison.Ordinal) ||
+                             text.Contains("plan", StringComparison.OrdinalIgnoreCase) && text.Contains("approv", StringComparison.OrdinalIgnoreCase));
+
     /// <summary>Délai après lequel une session « terminée » non consultée redevient « au repos ». Zéro = jamais.</summary>
     public TimeSpan DoneFadeAfter { get; set; } = TimeSpan.FromMinutes(30);
 
@@ -115,9 +122,11 @@ public sealed class SessionTracker
 
             case "PermissionRequest":
             {
+                // Dans l'extension VS Code (et Claude Desktop), les questions passent aussi par le circuit des
+                // permissions : un PermissionRequest pour AskUserQuestion / ExitPlanMode est une question.
                 var tool = p.Str("tool_name");
                 if (tool is not null) s.CurrentTool = s.LastTool = tool;
-                SetState(s, SessionState.Waiting, now, WaitReason.Permission);
+                SetState(s, SessionState.Waiting, now, IsQuestionTool(tool) ? WaitReason.Question : WaitReason.Permission);
                 break;
             }
 
@@ -133,9 +142,17 @@ public sealed class SessionTracker
                 switch (p.Str("notification_type"))
                 {
                     case "permission_prompt":
-                        SetState(s, SessionState.Waiting, now, WaitReason.Permission);
+                        // Rappel envoyé ~6 s après une demande en attente : il porte le type « permission » même
+                        // quand l'attente est une question (outil AskUserQuestion en cours, ou texte qui le dit).
+                        SetState(s, SessionState.Waiting, now, IsQuestionTool(s.CurrentTool) ||
+                            (s.State == SessionState.Waiting && s.WaitReason == WaitReason.Question) ||
+                            MentionsQuestion(p.Str("message")) || MentionsQuestion(p.Str("title"))
+                                ? WaitReason.Question
+                                : WaitReason.Permission);
                         break;
                     case "elicitation_dialog":
+                    case "elicitation_url_dialog":
+                    case "agent_needs_input":
                         SetState(s, SessionState.Waiting, now, WaitReason.Question);
                         break;
                     case "idle_prompt":

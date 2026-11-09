@@ -9,6 +9,7 @@ public sealed class KeyRenderer : IDisposable
     private readonly SKTypeface _bold;
     private readonly SKTypeface _semi;
     private readonly SKTypeface _regular;
+    private readonly SKTypeface _mono;
     private readonly int _size;
 
     public KeyRenderer(int size = 80)
@@ -17,6 +18,7 @@ public sealed class KeyRenderer : IDisposable
         _bold = LoadFont("ClaudeDeck.Fonts.Inter-Bold.otf");
         _semi = LoadFont("ClaudeDeck.Fonts.Inter-SemiBold.otf");
         _regular = LoadFont("ClaudeDeck.Fonts.Inter-Regular.otf");
+        _mono = LoadFont("ClaudeDeck.Fonts.JetBrainsMono-SemiBold.ttf");
     }
 
     public int Size => _size;
@@ -103,7 +105,8 @@ public sealed class KeyRenderer : IDisposable
         }
 
         // Ligne du bas (chrono) au plus près du bord inférieur.
-        if (v.Sub is { } sub) DrawText(c, sub, _semi, 11f, 8f, 3f, 77f, 76f, v.Muted, SKTextAlign.Center);
+        if (v.Sub is { } sub)
+            DrawText(c, sub, v.SubMono ? _mono : _semi, 11f, 8f, 3f, 77f, 76f, v.Muted, SKTextAlign.Center);
     }
 
     private void DrawGaugeLayout(SKCanvas c, KeyView v)
@@ -341,5 +344,6 @@ public sealed class KeyRenderer : IDisposable
         _bold.Dispose();
         _semi.Dispose();
         _regular.Dispose();
+        _mono.Dispose();
     }
 }

@@ -73,7 +73,8 @@ public sealed class KeyViewBuilder
                     // Le modèle (graisse normale) pendant tout le travail ; l'activité et le chrono en dessous.
                     Main = s.Model ?? "Claude",
                     MainRegular = true,
-                    Sub = s.TurnStartedAt is { } t ? Duration(now - t) : null,
+                    Sub = s.TurnStartedAt is { } t ? Chrono(now - t) : null,
+                    SubMono = true,
                 },
                 SessionState.Waiting => new KeyView
                 {
@@ -161,6 +162,14 @@ public sealed class KeyViewBuilder
         if (d.TotalSeconds < 60) return $"{(int)d.TotalSeconds} s";
         if (d.TotalHours < 1) return $"{(int)d.TotalMinutes}:{d.Seconds:00}";
         return $"{(int)d.TotalHours} h {d.Minutes:00}";
+    }
+
+    /// <summary>Chrono du travail : « mm:ss », ou « h:mm:ss » au-delà d'une heure.</summary>
+    public static string Chrono(TimeSpan d)
+    {
+        if (d < TimeSpan.Zero) d = TimeSpan.Zero;
+        var h = (int)d.TotalHours;
+        return h > 0 ? $"{h}:{d.Minutes:00}:{d.Seconds:00}" : $"{d.Minutes:00}:{d.Seconds:00}";
     }
 
     /// <summary>« à l'instant », « il y a 3 min », « il y a 2 h ».</summary>

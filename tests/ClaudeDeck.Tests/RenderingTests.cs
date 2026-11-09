@@ -324,11 +324,12 @@ public class StyleTests
         var v = b.Session(S(SessionState.Working), Now, 0);
         Assert.Equal("Opus 5.5", v.Main);
         Assert.True(v.MainRegular);
-        Assert.Equal("30 s", v.Sub);
+        Assert.Equal("00:30", v.Sub);
+        Assert.True(v.SubMono);
         var withTool = b.Session(S(SessionState.Working, "Bash"), Now, 0);
         Assert.Equal("Opus 5.5", withTool.Main);
         Assert.True(withTool.MainRegular);
-        Assert.Equal("30 s", withTool.Sub); // l'activité n'est plus affichée
+        Assert.Equal("00:30", withTool.Sub); // l'activité n'est plus affichée
         Assert.Equal("Claude", b.Session(S(SessionState.Working, model: null), Now, 0).Main);
     }
 
@@ -395,5 +396,45 @@ public class StyleTests
         Assert.Equal(2000, a.TotalMs);
         var step = (double)a.TotalMs / a.Frames.Count; // 142,86 ms
         for (var i = 0; i < a.Frames.Count; i++) Assert.Same(a.Frames[i], a.FrameAt((long)(i * step + step / 2)));
+    }
+}
+
+
+public class ChronoTests
+{
+    [Theory]
+    [InlineData(0, "00:00")]
+    [InlineData(5, "00:05")]
+    [InlineData(252, "04:12")]
+    [InlineData(3599, "59:59")]
+    [InlineData(3600, "1:00:00")]
+    [InlineData(37230, "10:20:30")]
+    public void Chrono_format(int seconds, string expected) => Assert.Equal(expected, KeyViewBuilder.Chrono(TimeSpan.FromSeconds(seconds)));
+
+    [Fact]
+    public void Chrono_width_is_constant_in_monospace()
+    {
+        // Même largeur de texte pour deux secondes successives : seules les images des chiffres changent.
+        var b = new KeyViewBuilder(TimeZoneInfo.Utc);
+        var now = new DateTimeOffset(2026, 11, 8, 10, 0, 0, TimeSpan.Zero);
+        SessionSnapshot S(int sec) => new("id", "p", null, null, "Opus 5.5", SessionState.Working, now, WaitReason.None, null, null,
+            now.AddSeconds(-sec), null, 0, null, null, now, null);
+        using var r = new KeyRenderer();
+        int Extent(KeyImage img)
+        {
+            // Colonnes occupées par la ligne du bas (y 68..79).
+            var bg = img.Rgba.AsSpan(0, 3).ToArray();
+            int min = 80, max = -1;
+            for (var y = 68; y < 80; y++)
+                for (var x = 0; x < 80; x++)
+                {
+                    var i = (y * 80 + x) * 4;
+                    if (Math.Abs(img.Rgba[i] - bg[0]) + Math.Abs(img.Rgba[i + 1] - bg[1]) + Math.Abs(img.Rgba[i + 2] - bg[2]) > 60)
+                    { min = Math.Min(min, x); max = Math.Max(max, x); }
+                }
+            return max - min;
+        }
+        // « 01:11 » (chiffres étroits) et « 08:08 » (chiffres larges) : même largeur.
+        Assert.InRange(Extent(r.Render(b.Session(S(71), now, 0))) - Extent(r.Render(b.Session(S(488), now, 0))), -2, 2);
     }
 }

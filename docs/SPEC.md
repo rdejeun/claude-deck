@@ -68,8 +68,8 @@ affiche la status line préexistante de l'utilisateur (exécutée via Git Bash, 
 | `SessionStart` | → Au repos (création) |
 | `UserPromptSubmit` | → Travaille, début du tour |
 | `PreToolUse` | → Travaille, outil courant ; `AskUserQuestion` / `ExitPlanMode` → En attente (question) |
-| `PermissionRequest`, `Notification[permission_prompt]` | → En attente (permission) |
-| `Notification[elicitation_dialog]` | → En attente (question) |
+| `PermissionRequest`, `Notification[permission_prompt]` | → En attente (permission) ; **question** si l'outil est `AskUserQuestion` / `ExitPlanMode` (l'extension VS Code fait passer les questions par le circuit des permissions), si l'attente en cours est déjà une question, ou si le message parle de question |
+| `Notification[elicitation_dialog \| elicitation_url_dialog \| agent_needs_input]` | → En attente (question) |
 | `PostToolUse`, `PostToolUseFailure`, `PermissionDenied` | → Travaille, plus d'outil courant |
 | `Notification[idle_prompt]` | si Travaille/Compaction → Au repos (tour interrompu par Échap, sans `Stop`) |
 | `Stop` | → Terminé (durée du tour mémorisée) |

@@ -5,6 +5,7 @@
 | [HidSharp](https://software.seekye.com/hidsharp) — James F. Bellinger | Accès HID USB (sans pilote Elgato) | Apache 2.0 |
 | [SkiaSharp](https://github.com/mono/SkiaSharp) | Rendu des images de touches | MIT |
 | [Inter](https://github.com/rsms/inter) — The Inter Project Authors | Police embarquée (`assets/fonts`) | SIL OFL 1.1 (voir `assets/fonts/OFL.txt`) |
+| [JetBrains Mono](https://github.com/JetBrains/JetBrainsMono) — JetBrains s.r.o. | Police à chasse fixe du chrono (`assets/fonts`) | Apache 2.0 (voir `assets/fonts/JetBrainsMono-LICENSE.txt`) |
 | [python-elgato-streamdeck](https://github.com/abcminiuser/python-elgato-streamdeck) — Dean Camera | Référence pour le protocole HID du Stream Deck Mini (aucun code copié tel quel) | MIT |
 | .NET 8 / Windows Forms | Runtime, icône de notification | MIT |
 

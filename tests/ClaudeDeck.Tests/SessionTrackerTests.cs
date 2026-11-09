@@ -238,3 +238,55 @@ public class TranscriptModelTests
         }
     }
 }
+
+
+public class QuestionDetectionTests
+{
+    private static SessionSnapshot Only(SessionTracker t) => Assert.Single(t.Snapshot());
+
+    [Fact]
+    public void Vscode_ask_user_question_stays_a_question()
+    {
+        // Séquence de l'extension VS Code : PreToolUse, PermissionRequest et rappel permission_prompt pour AskUserQuestion.
+        var t = new SessionTracker(new FakeTime());
+        t.HandleHook(J.Hook("a", "UserPromptSubmit"));
+        t.HandleHook(J.Hook("a", "PreToolUse", new { tool_name = "AskUserQuestion" }));
+        t.HandleHook(J.Hook("a", "PermissionRequest", new { tool_name = "AskUserQuestion" }));
+        Assert.Equal(WaitReason.Question, Only(t).WaitReason);
+        t.HandleHook(J.Hook("a", "Notification", new { notification_type = "permission_prompt", message = "Claude needs your permission to use AskUserQuestion" }));
+        Assert.Equal(WaitReason.Question, Only(t).WaitReason);
+        t.HandleHook(J.Hook("a", "PostToolUse", new { tool_name = "AskUserQuestion" }));
+        Assert.Equal(SessionState.Working, Only(t).State);
+    }
+
+    [Fact]
+    public void Permission_request_without_pretooluse_is_classified_by_tool()
+    {
+        var t = new SessionTracker(new FakeTime());
+        t.HandleHook(J.Hook("a", "PermissionRequest", new { tool_name = "ExitPlanMode" }));
+        Assert.Equal(WaitReason.Question, Only(t).WaitReason);
+        t.HandleHook(J.Hook("b", "PermissionRequest", new { tool_name = "Bash" }));
+        Assert.Equal(WaitReason.Permission, t.Snapshot().Single(s => s.Id == "b").WaitReason);
+    }
+
+    [Theory]
+    [InlineData("elicitation_url_dialog", null)]
+    [InlineData("agent_needs_input", null)]
+    [InlineData("permission_prompt", "Claude has a question for you")]
+    public void Other_question_signals(string type, string? message)
+    {
+        var t = new SessionTracker(new FakeTime());
+        t.HandleHook(J.Hook("a", "UserPromptSubmit"));
+        t.HandleHook(J.Hook("a", "Notification", new { notification_type = type, message }));
+        Assert.Equal(WaitReason.Question, Only(t).WaitReason);
+    }
+
+    [Fact]
+    public void Permission_prompt_for_bash_stays_a_permission()
+    {
+        var t = new SessionTracker(new FakeTime());
+        t.HandleHook(J.Hook("a", "PreToolUse", new { tool_name = "Bash" }));
+        t.HandleHook(J.Hook("a", "Notification", new { notification_type = "permission_prompt", message = "Claude needs your permission to use Bash" }));
+        Assert.Equal(WaitReason.Permission, Only(t).WaitReason);
+    }
+}
