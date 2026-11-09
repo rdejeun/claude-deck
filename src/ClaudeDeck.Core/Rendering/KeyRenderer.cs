@@ -105,7 +105,7 @@ public sealed class KeyRenderer : IDisposable
         // Ligne du bas (chrono) au plus près du bord inférieur.
         if (v.Sub is { } sub)
         {
-            if (v.SubMono) DrawTabular(c, sub, _semi, 11f, 40f, 76f, v.Muted);
+            if (v.SubMono) DrawTabular(c, sub, _semi, 11f, 40f, 77f, v.Muted); // 1 px plus bas que les autres lignes du bas
             else DrawText(c, sub, _semi, 11f, 8f, 3f, 77f, 76f, v.Muted, SKTextAlign.Center);
         }
     }
