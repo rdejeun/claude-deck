@@ -67,7 +67,13 @@ public sealed class KeyRenderer : IDisposable
     private void DrawIconLayout(SKCanvas c, KeyView v)
     {
         var titleRight = v.Badge is null ? 76f : 56f;
-        if (v.Title is { } t) DrawText(c, t, _semi, 12f, 9f, 4f, titleRight, 15f, v.Foreground, SKTextAlign.Left);
+        if (v.Title is { } t)
+        {
+            // Centré s'il tient à taille normale, sinon aligné à gauche (réduit puis tronqué si besoin).
+            using var probe = new SKFont(_semi, 12f);
+            var fits = probe.MeasureText(t) <= titleRight - 4f;
+            DrawText(c, t, _semi, 12f, 9f, 4f, titleRight, 15f, v.Foreground, fits ? SKTextAlign.Center : SKTextAlign.Left);
+        }
 
         var mainFace = v.MainRegular ? _medium : _bold;
         if (v.IconSprite is { } sprite)
@@ -77,8 +83,9 @@ public sealed class KeyRenderer : IDisposable
         }
         else if (v.Icon != KeyIcon.None && v.Main is null)
         {
-            // Icône seule (ex. « terminé ») : plus grande, centrée entre le titre et la ligne du bas.
-            DrawIcon(c, v.Icon, 40f, 44f, 15f, v.Accent, v.SpinnerPhase);
+            // Icône seule (ex. « terminé ») : plus grande, à égale distance du titre (bas des lettres ≈ 18 px)
+            // et de la ligne du bas (haut des lettres ≈ 67 px).
+            DrawIcon(c, v.Icon, 40f, 42.5f, 15f, v.Accent, v.SpinnerPhase);
         }
         else if (v.Icon != KeyIcon.None)
         {

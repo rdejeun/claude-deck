@@ -13,6 +13,8 @@ public sealed class SessionTracker
     private readonly object _gate = new();
     private readonly Dictionary<string, Session> _sessions = new(StringComparer.Ordinal);
     private readonly TimeProvider _time;
+    /// <summary>Taille de fenêtre de contexte observée par modèle (status line).</summary>
+    private readonly Dictionary<string, long> _windowByModel = new(StringComparer.Ordinal);
 
     /// <summary>Outils qui, par nature, attendent une réponse de l'utilisateur.</summary>
     private static readonly HashSet<string> UserFacingTools = new(StringComparer.Ordinal)
@@ -215,27 +217,39 @@ public sealed class SessionTracker
             s.ProjectDir = ws?.Str("project_dir") ?? s.ProjectDir;
             s.SessionName = payload.Str("session_name") ?? s.SessionName;
             s.Model = payload.Obj("model")?.Str("display_name") ?? s.Model;
-            s.ContextUsedPercent = payload.Obj("context_window")?.Num("used_percentage") ?? s.ContextUsedPercent;
+            var ctxWindow = payload.Obj("context_window");
+            if (ctxWindow?.Num("used_percentage") is { } pct)
+            {
+                s.ContextUsedPercent = pct;
+                s.ContextEstimated = false;
+                s.ContextFromStatusLineAt = now;
+            }
+            // Mémorise la taille de fenêtre par modèle, pour les sessions sans status line (extension VS Code).
+            if (ctxWindow?.Num("context_window_size") is { } size && size > 0 &&
+                ModelName.Format(payload.Obj("model")?.Str("id")) is { } key)
+                _windowByModel[key] = (long)size;
             s.CostUsd = payload.Obj("cost")?.Num("total_cost_usd") ?? s.CostUsd;
         }
         Changed?.Invoke();
     }
 
     /// <summary>
-    /// Met à jour le modèle des sessions à partir de leur transcript : au plus toutes les 15 s par session au travail,
-    /// et dès que possible pour une session dont le modèle est inconnu. La lecture du fichier se fait hors verrou.
+    /// Met à jour modèle et remplissage du contexte à partir des transcripts (seule source pour l'extension VS Code) :
+    /// après chaque nouvel événement (au plus toutes les 4 s), et toutes les 15 s pendant le travail.
+    /// La lecture des fichiers se fait hors verrou.
     /// </summary>
-    public void RefreshModelsFromTranscripts(Func<string, string?> readModelId)
+    public void RefreshFromTranscripts(Func<string, TranscriptInfo?> read)
     {
         var now = _time.GetUtcNow();
+        var minGap = TimeSpan.FromSeconds(4);
         List<(string Id, string Path)> due;
         lock (_gate)
         {
             due = _sessions.Values
                 .Where(s => s.TranscriptPath is not null)
-                .Where(s => s.Model is null
-                    ? s.ModelProbedAt is null || now - s.ModelProbedAt > TimeSpan.FromSeconds(4)
-                    : s.State is SessionState.Working && (s.ModelProbedAt is null || now - s.ModelProbedAt > TimeSpan.FromSeconds(15)))
+                .Where(s => s.ModelProbedAt is null
+                    || (now - s.ModelProbedAt > minGap && (s.Model is null || s.LastEventAt > s.ModelProbedAt))
+                    || (s.State is SessionState.Working && now - s.ModelProbedAt > TimeSpan.FromSeconds(15)))
                 .Select(s => (s.Id, s.TranscriptPath!))
                 .ToList();
             foreach (var (id, _) in due) _sessions[id].ModelProbedAt = now;
@@ -244,16 +258,34 @@ public sealed class SessionTracker
         var changed = false;
         foreach (var (id, path) in due)
         {
-            string? model;
-            try { model = ModelName.Format(readModelId(path)); }
+            TranscriptInfo? info;
+            try { info = read(path); }
             catch { continue; }
-            if (model is null) continue;
+            if (info is null) continue;
+            var model = ModelName.Format(info.ModelId);
             lock (_gate)
             {
-                if (_sessions.TryGetValue(id, out var s) && s.Model != model)
+                if (!_sessions.TryGetValue(id, out var s)) continue;
+                if (model is not null && s.Model != model)
                 {
                     s.Model = model;
                     changed = true;
+                }
+
+                // La status line (CLI) fait foi tant qu'elle est récente ; sinon, estimation depuis le transcript.
+                var statusLineFresh = s.ContextFromStatusLineAt is { } at && now - at < TimeSpan.FromMinutes(2);
+                if (!statusLineFresh && info.ContextTokens is { } tokens && tokens > 0)
+                {
+                    var key = model ?? s.Model;
+                    var known = key is not null && _windowByModel.TryGetValue(key, out var w) ? w : (long?)null;
+                    var window = known ?? (tokens > 200_000 ? 1_000_000 : 200_000);
+                    var pct = Math.Min(100.0, tokens * 100.0 / window);
+                    if (s.ContextUsedPercent != pct || s.ContextEstimated != (known is null))
+                    {
+                        s.ContextUsedPercent = pct;
+                        s.ContextEstimated = known is null;
+                        changed = true;
+                    }
                 }
             }
         }

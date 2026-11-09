@@ -324,7 +324,7 @@ public class StyleTests
         var withTool = b.Session(S(SessionState.Working, "Bash"), Now, 0);
         Assert.Equal("Opus 5.5", withTool.Main);
         Assert.True(withTool.MainRegular);
-        Assert.Equal("Terminal · 30 s", withTool.Sub);
+        Assert.Equal("30 s", withTool.Sub); // l'activité n'est plus affichée
         Assert.Equal("Claude", b.Session(S(SessionState.Working, model: null), Now, 0).Main);
     }
 
@@ -335,8 +335,12 @@ public class StyleTests
         var done = b.Session(S(SessionState.Done), Now, 0);
         Assert.Null(done.Main);
         Assert.Equal(KeyIcon.Check, done.Icon);
-        var idle = b.Session(S(SessionState.Idle), Now, 0);
+        var idle = b.Session(S(SessionState.Idle) with { ContextUsedPercent = 34.4 }, Now, 0);
         Assert.Equal(KeyIcon.Prompt, idle.Icon);
+        Assert.Equal("Opus 5.5", idle.Main);
+        Assert.True(idle.MainRegular);
+        Assert.Equal("contexte 34 %", idle.Sub);
+        Assert.Equal("contexte ≈ 34 %", b.Session(S(SessionState.Idle) with { ContextUsedPercent = 34.4, ContextEstimated = true }, Now, 0).Sub);
         var bg = idle.Background;
         Assert.True(Math.Abs(bg.R - bg.B) <= 8 && Math.Abs(bg.R - bg.G) <= 8); // gris neutre
         using var r = new KeyRenderer();

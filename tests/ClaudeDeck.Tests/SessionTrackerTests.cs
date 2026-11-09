@@ -202,20 +202,35 @@ public class TranscriptModelTests
             [
                 """{"type":"user","message":{"role":"user","content":"x"}}""",
                 """{"type":"assistant","message":{"model":"claude-sonnet-5-5","content":[]}}""",
-                """{"type":"assistant","message":{"model":"claude-opus-5-5","content":[{"type":"tool_use","input":{"model":"haiku"}}]}}""",
+                """{"type":"assistant","message":{"model":"claude-opus-5-5","content":[{"type":"tool_use","input":{"model":"haiku"}}],"usage":{"input_tokens":2,"cache_creation_input_tokens":1000,"cache_read_input_tokens":49000,"output_tokens":300}}}""",
                 """{"type":"assistant","isSidechain":true,"message":{"model":"claude-haiku-4-5-20251001","content":[]}}""",
                 """{"type":"assistant","message":{"model":"<synthetic>","content":[]}}""",
                 """{"type":"user","message":{"role":"user","content":"y"}}""",
             ]);
             Assert.Equal("claude-opus-5-5", TranscriptModelReader.LastModel(path));
+            Assert.Equal(50_002, TranscriptModelReader.Read(path)!.ContextTokens);
             Assert.Null(TranscriptModelReader.LastModel(path + ".absent"));
 
             var time = new FakeTime();
             var t = new SessionTracker(time);
             t.HandleHook(J.Hook("a", "UserPromptSubmit", new { transcript_path = path }));
             Assert.Null(t.Snapshot()[0].Model);
-            t.RefreshModelsFromTranscripts(TranscriptModelReader.LastModel);
-            Assert.Equal("Opus 5.5", t.Snapshot()[0].Model);
+            t.RefreshFromTranscripts(TranscriptModelReader.Read);
+            var s = t.Snapshot()[0];
+            Assert.Equal("Opus 5.5", s.Model);
+            Assert.Equal(25.001, s.ContextUsedPercent!.Value, 3); // fenêtre supposée de 200 000
+            Assert.True(s.ContextEstimated);
+
+            // Une status line a révélé une fenêtre de 1 M pour ce modèle : plus d'estimation.
+            t.HandleStatusLine(J.E(new { session_id = "b", model = new { id = "claude-opus-5-5[1m]", display_name = "Opus 5.5" },
+                context_window = new { used_percentage = 3, context_window_size = 1_000_000 } }));
+            time.Advance(TimeSpan.FromSeconds(5));
+            t.HandleHook(J.Hook("a", "Stop"));
+            time.Advance(TimeSpan.FromSeconds(5));
+            t.RefreshFromTranscripts(TranscriptModelReader.Read);
+            s = t.Snapshot().Single(x => x.Id == "a");
+            Assert.Equal(5.0002, s.ContextUsedPercent!.Value, 3);
+            Assert.False(s.ContextEstimated);
         }
         finally
         {

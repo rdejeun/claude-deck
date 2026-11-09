@@ -60,6 +60,10 @@ public sealed class Session
 
     public int ActiveSubagents { get; set; }
     public double? ContextUsedPercent { get; set; }
+    /// <summary>Le % de contexte est estimé (taille de fenêtre supposée) et non fourni par la status line.</summary>
+    public bool ContextEstimated { get; set; }
+    /// <summary>Dernière valeur de contexte fournie par la status line (prioritaire sur le transcript).</summary>
+    public DateTimeOffset? ContextFromStatusLineAt { get; set; }
     public double? CostUsd { get; set; }
 
     public DateTimeOffset LastEventAt { get; set; }
@@ -90,7 +94,7 @@ public sealed class Session
 
     public SessionSnapshot Snapshot() => new(
         Id, DisplayName, Cwd, SessionName, Model, State, StateSince, WaitReason, CurrentTool, LastTool,
-        TurnStartedAt, LastTurnDuration, ActiveSubagents, ContextUsedPercent, CostUsd, LastEventAt, Client);
+        TurnStartedAt, LastTurnDuration, ActiveSubagents, ContextUsedPercent, CostUsd, LastEventAt, Client, ContextEstimated);
 }
 
 /// <summary>Copie immuable d'une session, partagée avec le rendu et l'API web.</summary>
@@ -111,4 +115,5 @@ public sealed record SessionSnapshot(
     double? ContextUsedPercent,
     double? CostUsd,
     DateTimeOffset LastEventAt,
-    ClientProcess? Client);
+    ClientProcess? Client,
+    bool ContextEstimated = false);

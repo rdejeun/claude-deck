@@ -69,7 +69,7 @@ public sealed class KeyViewBuilder
                     // Le modèle (graisse normale) pendant tout le travail ; l'activité et le chrono en dessous.
                     Main = s.Model ?? "Claude",
                     MainRegular = true,
-                    Sub = WorkingSub(s, now),
+                    Sub = s.TurnStartedAt is { } t ? Duration(now - t) : null,
                 },
                 SessionState.Waiting => new KeyView
                 {
@@ -103,8 +103,9 @@ public sealed class KeyViewBuilder
                 _ => new KeyView
                 {
                     Background = C.IdleBg, Foreground = C.IdleFg, Accent = C.IdleAccent, Muted = C.IdleMuted,
-                    Title = title, Icon = KeyIcon.Prompt, Main = "Au repos",
-                    Sub = s.ContextUsedPercent is { } ctx ? $"contexte {ctx:0} %" : s.Model,
+                    Title = title, Icon = KeyIcon.Prompt,
+                    Main = s.Model ?? "Claude", MainRegular = true,
+                    Sub = s.ContextUsedPercent is { } ctx ? $"contexte {(s.ContextEstimated ? "≈ " : "")}{ctx:0} %" : null,
                 },
             };
         }
@@ -119,22 +120,6 @@ public sealed class KeyViewBuilder
             };
         }
         return view;
-    }
-
-    /// <summary>Ligne du bas d'une session au travail : « Terminal · 4:12 », « Agents ×2 · 0:35 », ou le seul chrono.</summary>
-    private static string? WorkingSub(SessionSnapshot s, DateTimeOffset now)
-    {
-        string? activity = null;
-        if (s.CurrentTool is { } tool) activity = ToolLabel(tool);
-        else if (s.ActiveSubagents > 0) activity = $"Agents ×{s.ActiveSubagents}";
-        var chrono = s.TurnStartedAt is { } t ? Duration(now - t) : null;
-        return (activity, chrono) switch
-        {
-            (null, null) => null,
-            (null, _) => chrono,
-            (_, null) => activity,
-            _ => $"{activity} · {chrono}",
-        };
     }
 
     /// <summary>Nom d'outil court et lisible.</summary>

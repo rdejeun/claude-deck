@@ -76,7 +76,7 @@ affiche la status line préexistante de l'utilisateur (exécutée via Git Bash, 
 | `StopFailure` | → Erreur |
 | `PreCompact` / `PostCompact` | → Compaction / retour à Travaille ou Au repos |
 | `SubagentStart` / `SubagentStop` | compteur d'agents (≥ 0) |
-| `SessionStart.model`, `PostModelSwitch.to_model` | modèle affiché (« claude-opus-5-5 » → « Opus 5.5 ») ; aussi mis à jour par la status line (`model.display_name`) et par la lecture du transcript (`transcript_path`, dernière réponse de l'agent principal, toutes les 15 s au travail) — seule source pour l'extension VS Code |
+| `SessionStart.model`, `PostModelSwitch.to_model` | modèle affiché (« claude-opus-5-5 » → « Opus 5.5 ») ; aussi mis à jour par la status line (`model.display_name`) et par la lecture du transcript (`transcript_path`, dernière réponse de l'agent principal, après chaque événement et toutes les 15 s au travail) — seule source pour l'extension VS Code. Le transcript donne aussi le remplissage du contexte (jetons d'entrée + cache) ; la taille de fenêtre vient de la status line pour ce modèle si elle a été vue, sinon elle est supposée (200 000, ou 1 M au-delà) et le % est affiché « ≈ » |
 | `SessionEnd` | suppression |
 | appui sur la touche | Terminé/Erreur → Au repos |
 | maintenance (10 s) | Terminé/Erreur → Au repos après 30 min ; suppression si processus mort ou 12 h sans événement |

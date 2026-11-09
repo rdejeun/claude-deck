@@ -175,7 +175,7 @@ public sealed class DeckController : IDisposable
                 catch { return true; }
             });
             // Modèle réellement utilisé, lu dans le transcript (l'extension VS Code n'a pas de status line).
-            _sessions.RefreshModelsFromTranscripts(TranscriptModelReader.LastModel);
+            _sessions.RefreshFromTranscripts(TranscriptModelReader.Read);
         }
         catch (Exception ex)
         {
