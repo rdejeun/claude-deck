@@ -9,7 +9,6 @@ public sealed class KeyRenderer : IDisposable
     private readonly SKTypeface _bold;
     private readonly SKTypeface _semi;
     private readonly SKTypeface _regular;
-    private readonly SKTypeface _mono;
     private readonly int _size;
 
     public KeyRenderer(int size = 80)
@@ -18,7 +17,6 @@ public sealed class KeyRenderer : IDisposable
         _bold = LoadFont("ClaudeDeck.Fonts.Inter-Bold.otf");
         _semi = LoadFont("ClaudeDeck.Fonts.Inter-SemiBold.otf");
         _regular = LoadFont("ClaudeDeck.Fonts.Inter-Regular.otf");
-        _mono = LoadFont("ClaudeDeck.Fonts.JetBrainsMono-SemiBold.ttf");
     }
 
     public int Size => _size;
@@ -106,7 +104,10 @@ public sealed class KeyRenderer : IDisposable
 
         // Ligne du bas (chrono) au plus près du bord inférieur.
         if (v.Sub is { } sub)
-            DrawText(c, sub, v.SubMono ? _mono : _semi, 11f, 8f, 3f, 77f, 76f, v.Muted, SKTextAlign.Center);
+        {
+            if (v.SubMono) DrawTabular(c, sub, _semi, 11f, 40f, 76f, v.Muted);
+            else DrawText(c, sub, _semi, 11f, 8f, 3f, 77f, 76f, v.Muted, SKTextAlign.Center);
+        }
     }
 
     private void DrawGaugeLayout(SKCanvas c, KeyView v)
@@ -324,6 +325,26 @@ public sealed class KeyRenderer : IDisposable
         c.DrawText(shown, x, baseline, align, font, paint);
     }
 
+    /// <summary>
+    /// Chiffres « tabulaires » : chaque chiffre est centré dans une case de largeur fixe (celle du chiffre le plus large),
+    /// avec la police normale (zéro simple). Le texte ne se décale plus quand les chiffres changent.
+    /// </summary>
+    private static void DrawTabular(SKCanvas c, string text, SKTypeface face, float size, float centerX, float baseline, Rgb color)
+    {
+        using var font = new SKFont(face, size) { Subpixel = true, Edging = SKFontEdging.Antialias };
+        using var paint = Fill(color);
+        var cell = "0123456789".Max(d => font.MeasureText(d.ToString()));
+        float Width(char ch) => char.IsDigit(ch) ? cell : font.MeasureText(ch.ToString());
+        var total = text.Sum(Width);
+        var x = centerX - total / 2f;
+        foreach (var ch in text)
+        {
+            var w = Width(ch);
+            c.DrawText(ch.ToString(), x + w / 2f, baseline, SKTextAlign.Center, font, paint);
+            x += w;
+        }
+    }
+
     private static SKPaint Fill(Rgb color) => new() { Color = ToSk(color), IsAntialias = true, Style = SKPaintStyle.Fill };
 
     private static SKColor ToSk(Rgb c) => new(c.R, c.G, c.B);
@@ -344,6 +365,5 @@ public sealed class KeyRenderer : IDisposable
         _bold.Dispose();
         _semi.Dispose();
         _regular.Dispose();
-        _mono.Dispose();
     }
 }

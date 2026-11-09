@@ -24,7 +24,7 @@ Une session garde sa touche tant qu'elle reste affichée ; la pastille « +N » 
 | État | Couleur | Déclencheur (hooks Claude Code) |
 |---|---|---|
 | Au repos | gris, invite « > », modèle et remplissage du contexte (« ≈ » si estimé) | `SessionStart`, Échap (`Notification` idle) |
-| Travaille | orange très sombre, astérisque animé (2 s, déphasé d'une touche à l'autre), modèle (« Opus 5.5 ») et chrono du tour (`mm:ss` ou `h:mm:ss`, chasse fixe) | `UserPromptSubmit`, `PreToolUse`, `PostToolUse` |
+| Travaille | orange très sombre, astérisque animé (2 s, déphasé d'une touche à l'autre), modèle (« Opus 5.5 ») et chrono du tour (`mm:ss` ou `h:mm:ss`, chiffres à largeur fixe) | `UserPromptSubmit`, `PreToolUse`, `PostToolUse` |
 | **Autoriser / Question** | **bleu**, clignotant pendant 10 s puis fixe, icône seule (triangle ou « ? ») | `PermissionRequest`, `Notification` (permission, elicitation), `AskUserQuestion` |
 | Terminé | vert, coche seule, « il y a 3 min » | `Stop` |
 | Compaction | violet | `PreCompact` → `PostCompact` |

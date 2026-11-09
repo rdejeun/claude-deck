@@ -11,7 +11,6 @@
     <EmbeddedResource Include="..\..\assets\fonts\Inter-Bold.otf" LogicalName="ClaudeDeck.Fonts.Inter-Bold.otf" />
     <EmbeddedResource Include="..\..\assets\fonts\Inter-SemiBold.otf" LogicalName="ClaudeDeck.Fonts.Inter-SemiBold.otf" />
     <EmbeddedResource Include="..\..\assets\fonts\Inter-Regular.otf" LogicalName="ClaudeDeck.Fonts.Inter-Regular.otf" />
-    <EmbeddedResource Include="..\..\assets\fonts\JetBrainsMono-SemiBold.ttf" LogicalName="ClaudeDeck.Fonts.JetBrainsMono-SemiBold.ttf" />
     <EmbeddedResource Include="..\..\assets\logo\default-logo.png" LogicalName="ClaudeDeck.Logo.default-logo.png" />
     <EmbeddedResource Include="Web\*.html" LogicalName="ClaudeDeck.Web.%(Filename)%(Extension)" />
     <EmbeddedResource Include="..\..\assets\animations\claude-spinner.png" LogicalName="ClaudeDeck.Animations.claude-spinner.png" />

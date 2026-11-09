@@ -42,7 +42,7 @@ public sealed record KeyView
     /// <summary>Texte principal en graisse normale (ex. nom du modèle) au lieu de gras.</summary>
     public bool MainRegular { get; init; }
 
-    /// <summary>Ligne du bas en police à chasse fixe (chrono : pas de décalage d'une seconde à l'autre).</summary>
+    /// <summary>Ligne du bas en chiffres à largeur fixe (chrono : pas de décalage d'une seconde à l'autre).</summary>
     public bool SubMono { get; init; }
 
     /// <summary>Ligne du bas, discrète.</summary>
