@@ -125,7 +125,7 @@ static class Gallery
             ("04-working-agents", b.Session(S(ClaudeDeck.Core.Model.SessionState.Working, agents: 2), now, 750)),
             ("05-waiting-permission-on", b.Session(S(ClaudeDeck.Core.Model.SessionState.Waiting, "Bash", ClaudeDeck.Core.Model.WaitReason.Permission), now, 0)),
             ("06-waiting-permission-off", b.Session(S(ClaudeDeck.Core.Model.SessionState.Waiting, "Bash", ClaudeDeck.Core.Model.WaitReason.Permission), now, 500)),
-            ("07-waiting-question", b.Session(S(ClaudeDeck.Core.Model.SessionState.Waiting, "AskUserQuestion", ClaudeDeck.Core.Model.WaitReason.Question), now, 0)),
+            ("07-waiting-question", b.Session(S(ClaudeDeck.Core.Model.SessionState.Waiting, "AskUserQuestion", ClaudeDeck.Core.Model.WaitReason.Question) with { QuestionTitle = "Framework" }, now, 0)),
             ("08-done", b.Session(S(ClaudeDeck.Core.Model.SessionState.Done), now, 0)),
             ("09-compacting", b.Session(S(ClaudeDeck.Core.Model.SessionState.Compacting), now, 0)),
             ("10-error", b.Session(S(ClaudeDeck.Core.Model.SessionState.Error), now, 0)),

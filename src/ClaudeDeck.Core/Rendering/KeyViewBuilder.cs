@@ -85,7 +85,10 @@ public sealed class KeyViewBuilder
                     Title = title,
                     // Pas de légende : l'icône (triangle = permission, « ? » = question) suffit.
                     Icon = s.WaitReason == WaitReason.Question ? KeyIcon.Question : KeyIcon.Alert,
-                    Sub = s.WaitReason != WaitReason.Question && s.CurrentTool is { } tool ? ToolLabel(tool) : Duration(now - s.StateSince),
+                    // Question : son titre ; autorisation : l'outil concerné.
+                    Sub = s.WaitReason == WaitReason.Question
+                        ? s.QuestionTitle
+                        : s.CurrentTool is { } tool ? ToolLabel(tool) : Duration(now - s.StateSince),
                 },
                 SessionState.Done => new KeyView
                 {

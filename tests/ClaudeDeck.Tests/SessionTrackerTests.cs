@@ -1,5 +1,6 @@
 using ClaudeDeck.Core.Engine;
 using ClaudeDeck.Core.Model;
+using ClaudeDeck.Core.Rendering;
 
 namespace ClaudeDeck.Tests;
 
@@ -288,5 +289,48 @@ public class QuestionDetectionTests
         t.HandleHook(J.Hook("a", "PreToolUse", new { tool_name = "Bash" }));
         t.HandleHook(J.Hook("a", "Notification", new { notification_type = "permission_prompt", message = "Claude needs your permission to use Bash" }));
         Assert.Equal(WaitReason.Permission, Only(t).WaitReason);
+    }
+}
+
+public class QuestionTitleTests
+{
+    private static object Ask(params (string Q, string? H)[] qs) => new
+    {
+        questions = qs.Select(x => new { question = x.Q, header = x.H, options = new[] { new { label = "A" } }, multiSelect = false }).ToArray(),
+    };
+
+    [Fact]
+    public void Header_of_first_question_becomes_the_title_and_is_cleared_after()
+    {
+        var t = new SessionTracker(new FakeTime());
+        t.HandleHook(J.Hook("a", "PreToolUse", new { tool_name = "AskUserQuestion", tool_input = Ask(("Quel framework ?", "Framework"), ("Quel style ?", "Style")) }));
+        Assert.Equal("Framework", t.Snapshot()[0].QuestionTitle);
+        // Rappel « permission » de l'extension VS Code : le titre est conservé.
+        t.HandleHook(J.Hook("a", "PermissionRequest", new { tool_name = "AskUserQuestion", tool_input = Ask(("Quel framework ?", "Framework")) }));
+        t.HandleHook(J.Hook("a", "Notification", new { notification_type = "permission_prompt", message = "Claude needs your permission to use AskUserQuestion" }));
+        Assert.Equal("Framework", t.Snapshot()[0].QuestionTitle);
+        t.HandleHook(J.Hook("a", "PostToolUse", new { tool_name = "AskUserQuestion" }));
+        Assert.Null(t.Snapshot()[0].QuestionTitle);
+    }
+
+    [Fact]
+    public void Fallbacks_question_text_plan_and_elicitation()
+    {
+        Assert.Equal("Quel framework ?", SessionTracker.QuestionTitleOf("AskUserQuestion", J.E(Ask(("Quel framework ?", null)))));
+        Assert.Equal("Plan", SessionTracker.QuestionTitleOf("ExitPlanMode", J.E(new { plan = "..." })));
+        var t = new SessionTracker(new FakeTime());
+        t.HandleHook(J.Hook("a", "Notification", new { notification_type = "elicitation_dialog", title = "GitHub", message = "Choisir un dépôt" }));
+        Assert.Equal("GitHub", t.Snapshot()[0].QuestionTitle);
+    }
+
+    [Fact]
+    public void Question_tile_shows_title_instead_of_timer()
+    {
+        var now = new DateTimeOffset(2026, 11, 8, 10, 0, 0, TimeSpan.Zero);
+        var b = new KeyViewBuilder(TimeZoneInfo.Utc);
+        var s = new SessionSnapshot("id", "p", null, null, null, SessionState.Waiting, now.AddSeconds(-95), WaitReason.Question,
+            "AskUserQuestion", null, null, null, 0, null, null, now, null, QuestionTitle: "Framework");
+        Assert.Equal("Framework", b.Session(s, now, 0).Sub);
+        Assert.Null(b.Session(s with { QuestionTitle = null }, now, 0).Sub);
     }
 }

@@ -69,6 +69,9 @@ public sealed class Session
     public DateTimeOffset LastEventAt { get; set; }
     public ClientProcess? Client { get; set; }
 
+    /// <summary>Titre court de la question en attente (champ « header » d'AskUserQuestion), ou null.</summary>
+    public string? QuestionTitle { get; set; }
+
     /// <summary>Transcript JSONL de la session (champ transcript_path des hooks).</summary>
     public string? TranscriptPath { get; set; }
 
@@ -94,7 +97,8 @@ public sealed class Session
 
     public SessionSnapshot Snapshot() => new(
         Id, DisplayName, Cwd, SessionName, Model, State, StateSince, WaitReason, CurrentTool, LastTool,
-        TurnStartedAt, LastTurnDuration, ActiveSubagents, ContextUsedPercent, CostUsd, LastEventAt, Client, ContextEstimated);
+        TurnStartedAt, LastTurnDuration, ActiveSubagents, ContextUsedPercent, CostUsd, LastEventAt, Client, ContextEstimated,
+        QuestionTitle);
 }
 
 /// <summary>Copie immuable d'une session, partagée avec le rendu et l'API web.</summary>
@@ -116,4 +120,5 @@ public sealed record SessionSnapshot(
     double? CostUsd,
     DateTimeOffset LastEventAt,
     ClientProcess? Client,
-    bool ContextEstimated = false);
+    bool ContextEstimated = false,
+    string? QuestionTitle = null);

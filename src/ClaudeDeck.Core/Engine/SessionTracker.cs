@@ -113,9 +113,14 @@ public sealed class SessionTracker
                 s.CurrentTool = tool;
                 if (tool is not null) s.LastTool = tool;
                 if (tool is not null && UserFacingTools.Contains(tool))
+                {
                     SetState(s, SessionState.Waiting, now, WaitReason.Question);
+                    s.QuestionTitle = QuestionTitleOf(tool, p.Obj("tool_input")) ?? s.QuestionTitle;
+                }
                 else
+                {
                     SetState(s, SessionState.Working, now);
+                }
                 s.TurnStartedAt ??= now;
                 break;
             }
@@ -127,6 +132,7 @@ public sealed class SessionTracker
                 var tool = p.Str("tool_name");
                 if (tool is not null) s.CurrentTool = s.LastTool = tool;
                 SetState(s, SessionState.Waiting, now, IsQuestionTool(tool) ? WaitReason.Question : WaitReason.Permission);
+                if (IsQuestionTool(tool)) s.QuestionTitle = QuestionTitleOf(tool, p.Obj("tool_input")) ?? s.QuestionTitle;
                 break;
             }
 
@@ -154,6 +160,8 @@ public sealed class SessionTracker
                     case "elicitation_url_dialog":
                     case "agent_needs_input":
                         SetState(s, SessionState.Waiting, now, WaitReason.Question);
+                        // Formulaire MCP : à défaut d'en-tête, le titre (ou le message) de la notification.
+                        s.QuestionTitle ??= p.Str("title") ?? p.Str("message");
                         break;
                     case "idle_prompt":
                         // Claude attend une saisie : si l'on croyait qu'il travaillait, le tour a été
@@ -212,6 +220,25 @@ public sealed class SessionTracker
         if (s.State != state || s.WaitReason != reason) s.StateSince = now;
         s.State = state;
         s.WaitReason = state == SessionState.Waiting ? reason : WaitReason.None;
+        if (s.WaitReason != WaitReason.Question) s.QuestionTitle = null;
+    }
+
+    /// <summary>
+    /// Titre court d'une question : « header » de la première question d'AskUserQuestion (≤ 12 caractères, conçu pour
+    /// une étiquette), sinon le début de son texte ; « Plan » pour la validation d'un plan.
+    /// </summary>
+    internal static string? QuestionTitleOf(string? tool, JsonElement? input)
+    {
+        if (tool == "ExitPlanMode") return "Plan";
+        if (input is not { } i || !i.TryGetProperty("questions", out var qs) || qs.ValueKind != JsonValueKind.Array) return null;
+        foreach (var q in qs.EnumerateArray())
+        {
+            var header = q.Str("header");
+            if (!string.IsNullOrWhiteSpace(header)) return header.Trim();
+            var text = q.Str("question");
+            if (!string.IsNullOrWhiteSpace(text)) return text.Trim();
+        }
+        return null;
     }
 
     /// <summary>Met à jour une session à partir du JSON reçu par la status line (modèle, contexte, coût).</summary>
