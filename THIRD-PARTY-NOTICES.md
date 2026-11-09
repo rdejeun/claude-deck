@@ -8,4 +8,7 @@
 | [python-elgato-streamdeck](https://github.com/abcminiuser/python-elgato-streamdeck) — Dean Camera | Référence pour le protocole HID du Stream Deck Mini (aucun code copié tel quel) | MIT |
 | .NET 8 / Windows Forms | Runtime, icône de notification | MIT |
 
+| Logo par défaut de la 6ᵉ touche (`assets/logo/default-logo.png`) | Fourni par le propriétaire du dépôt | Logo de Claude, marque d'Anthropic. **Non couvert par la licence MIT** de ce dépôt ; inclus pour un usage personnel. Remplaçable par n'importe quelle image (réglage « Image du logo ») |
+| Glyphes de l'animation « travaille » (`assets/animations`) | Fournis par le propriétaire du dépôt | Reproduisent l'indicateur d'activité de Claude Code (Anthropic) |
+
 « Stream Deck » est une marque d'Elgato (Corsair). ClaudeDeck n'est ni affilié ni approuvé par Elgato ou Anthropic.

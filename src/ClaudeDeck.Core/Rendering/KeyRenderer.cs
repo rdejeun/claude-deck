@@ -8,7 +8,7 @@ public sealed class KeyRenderer : IDisposable
 {
     private readonly SKTypeface _bold;
     private readonly SKTypeface _semi;
-    private readonly SKTypeface _medium;
+    private readonly SKTypeface _regular;
     private readonly int _size;
 
     public KeyRenderer(int size = 80)
@@ -16,7 +16,7 @@ public sealed class KeyRenderer : IDisposable
         _size = size;
         _bold = LoadFont("ClaudeDeck.Fonts.Inter-Bold.otf");
         _semi = LoadFont("ClaudeDeck.Fonts.Inter-SemiBold.otf");
-        _medium = LoadFont("ClaudeDeck.Fonts.Inter-Medium.otf");
+        _regular = LoadFont("ClaudeDeck.Fonts.Inter-Regular.otf");
     }
 
     public int Size => _size;
@@ -69,17 +69,19 @@ public sealed class KeyRenderer : IDisposable
         var titleRight = v.Badge is null ? 76f : 56f;
         if (v.Title is { } t)
         {
-            // Centré s'il tient à taille normale, sinon aligné à gauche (réduit puis tronqué si besoin).
+            // Centré s'il tient à taille normale, sinon aligné à gauche (réduit jusqu'à 10,5 px puis tronqué).
             using var probe = new SKFont(_semi, 12f);
             var fits = probe.MeasureText(t) <= titleRight - 4f;
-            DrawText(c, t, _semi, 12f, 9f, 4f, titleRight, 15f, v.Foreground, fits ? SKTextAlign.Center : SKTextAlign.Left);
+            DrawText(c, t, _semi, 12f, 10.5f, 4f, titleRight, 15f, v.Foreground, fits ? SKTextAlign.Center : SKTextAlign.Left);
         }
 
-        var mainFace = v.MainRegular ? _medium : _bold;
+        // Texte principal : gras par défaut ; graisse normale et plus petit pour le nom du modèle.
+        var mainFace = v.MainRegular ? _regular : _bold;
+        var mainSize = v.MainRegular ? 12f : 13.5f;
         if (v.IconSprite is { } sprite)
         {
             DrawSprite(c, sprite, 40f, 33f, 28f);
-            if (v.Main is { } m) DrawText(c, m, mainFace, 13.5f, 10f, 3f, 77f, 59f, v.Foreground, SKTextAlign.Center);
+            if (v.Main is { } m) DrawText(c, m, mainFace, mainSize, 9f, 3f, 77f, 59f, v.Foreground, SKTextAlign.Center);
         }
         else if (v.Icon != KeyIcon.None && v.Main is null)
         {
@@ -90,7 +92,7 @@ public sealed class KeyRenderer : IDisposable
         else if (v.Icon != KeyIcon.None)
         {
             DrawIcon(c, v.Icon, 40f, 33f, 10.5f, v.Accent, v.SpinnerPhase);
-            if (v.Main is { } m) DrawText(c, m, mainFace, 13.5f, 10f, 3f, 77f, 59f, v.Foreground, SKTextAlign.Center);
+            if (v.Main is { } m) DrawText(c, m, mainFace, mainSize, 9f, 3f, 77f, 59f, v.Foreground, SKTextAlign.Center);
         }
         else if (v.Main is { } m)
         {
@@ -335,6 +337,6 @@ public sealed class KeyRenderer : IDisposable
     {
         _bold.Dispose();
         _semi.Dispose();
-        _medium.Dispose();
+        _regular.Dispose();
     }
 }

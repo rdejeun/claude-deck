@@ -78,8 +78,8 @@ public sealed class KeyViewBuilder
                     Accent = blinkOn ? C.WaitOnFg : C.WaitOffAccent,
                     Muted = blinkOn ? C.WaitOnFg : C.WaitOffFg,
                     Title = title,
+                    // Pas de légende : l'icône (triangle = permission, « ? » = question) suffit.
                     Icon = s.WaitReason == WaitReason.Question ? KeyIcon.Question : KeyIcon.Alert,
-                    Main = s.WaitReason == WaitReason.Question ? "Question" : "Autoriser ?",
                     Sub = s.WaitReason != WaitReason.Question && s.CurrentTool is { } tool ? ToolLabel(tool) : Duration(now - s.StateSince),
                 },
                 SessionState.Done => new KeyView
@@ -251,12 +251,12 @@ public sealed class KeyViewBuilder
     // ───────────────────────────── Divers ─────────────────────────────
 
     /// <summary>
-    /// Touche logo : image personnelle si fournie, sinon une étoile rayonnante générique (pas le logo officiel de Claude,
-    /// marque d'Anthropic : l'utilisateur peut charger le sien via LogoImagePath).
+    /// Touche logo : image personnelle si fournie, sinon le logo par défaut embarqué (assets/logo/default-logo.png),
+    /// et en dernier recours un motif vectoriel.
     /// </summary>
-    public static KeyView Logo(KeyImage? custom) => custom is not null
-        ? new KeyView { Image = custom }
-        : new KeyView { Background = Rgb.Hex(0x1C1D22), Accent = Rgb.Hex(0xD97757), Icon = KeyIcon.Spark };
+    public static KeyView Logo(KeyImage? custom) => (custom ?? LogoImageCache.Default) is { } image
+        ? new KeyView { Image = image }
+        : new KeyView { Background = Rgb.Hex(0x111318), Accent = Rgb.Hex(0xFF6330), Icon = KeyIcon.Spark };
 
     public static KeyView TestPattern(int index) => new()
     {

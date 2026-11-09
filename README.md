@@ -25,7 +25,7 @@ Une session garde sa touche tant qu'elle reste affichée ; la pastille « +N » 
 |---|---|---|
 | Au repos | gris, invite « > », modèle et remplissage du contexte (« ≈ » si estimé) | `SessionStart`, Échap (`Notification` idle) |
 | Travaille | orange très sombre, astérisque animé (2 s, déphasé d'une touche à l'autre), modèle (« Opus 5.5 ») et durée du tour | `UserPromptSubmit`, `PreToolUse`, `PostToolUse` |
-| **Autoriser ? / Question** | **bleu clignotant** | `PermissionRequest`, `Notification` (permission, elicitation), `AskUserQuestion` |
+| **Autoriser / Question** | **bleu clignotant**, icône seule (triangle ou « ? ») | `PermissionRequest`, `Notification` (permission, elicitation), `AskUserQuestion` |
 | Terminé | vert, coche seule, « il y a 3 min » | `Stop` |
 | Compaction | violet | `PreCompact` → `PostCompact` |
 | Erreur API | rouge | `StopFailure` |
@@ -38,9 +38,8 @@ ou Windows Terminal) et acquitte l'état « terminé ».
 1. **Session** (fenêtre de 5 h) du forfait Pro/Max : % consommé et heure de réinitialisation.
    Couleur de la jauge : bleu jusqu'à 90 %, orange jusqu'à 95 %, rouge au-delà.
 2. **Semaine** : % consommé et jour + heure de réinitialisation.
-3. **Logo** (par défaut) : un motif d'étoile rayonnante, ou votre propre image (réglage « Image du logo »,
-   PNG/JPG redimensionné automatiquement). Le logo officiel de Claude, marque d'Anthropic, n'est pas fourni dans ce
-   dépôt : vous pouvez l'y mettre vous-même pour votre usage personnel.
+3. **Logo** (par défaut) : le logo de Claude (`assets/logo/default-logo.png`, marque d'Anthropic, non couvert par la
+   licence MIT), ou votre propre image (réglage « Image du logo », PNG/JPG redimensionné automatiquement).
    **Appui : ouvre [claude.ai/new](https://claude.ai/new)** dans le navigateur par défaut (nouvel onglet ; option
    « nouvelle fenêtre » dans les réglages), même si l'écran est en veille. Adresse modifiable, vide = aucune action.
    En option, **API · 7 jours** : dépense de l'organisation (Admin API) et **solde estimé** — nécessite un compte

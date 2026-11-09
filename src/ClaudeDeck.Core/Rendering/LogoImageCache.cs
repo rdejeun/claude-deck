@@ -18,6 +18,40 @@ public sealed class LogoImageCache
 
     public LogoImageCache(int size) => _size = size;
 
+    private static readonly Lazy<KeyImage?> DefaultLogo = new(LoadDefault);
+
+    /// <summary>Logo par défaut embarqué (80 × 80, fond transparent) posé sur le fond sombre des jauges.</summary>
+    public static KeyImage? Default => DefaultLogo.Value;
+
+    private static KeyImage? LoadDefault()
+    {
+        try
+        {
+            using var s = typeof(LogoImageCache).Assembly.GetManifestResourceStream("ClaudeDeck.Logo.default-logo.png");
+            if (s is null) return null;
+            using var src = SKBitmap.Decode(s);
+            if (src is null) return null;
+            const int size = 80;
+            using var dst = new SKBitmap(new SKImageInfo(size, size, SKColorType.Rgba8888, SKAlphaType.Premul));
+            using (var canvas = new SKCanvas(dst))
+            {
+                canvas.Clear(new SKColor(0x11, 0x13, 0x18));
+                using var image = SKImage.FromBitmap(src);
+                using var paint = new SKPaint { IsAntialias = true };
+                var sampling = src.Width == size && src.Height == size
+                    ? new SKSamplingOptions(SKFilterMode.Nearest)
+                    : new SKSamplingOptions(SKCubicResampler.Mitchell);
+                canvas.DrawImage(image, SKRect.Create(0, 0, size, size), sampling, paint);
+            }
+            return new KeyImage(size, dst.Bytes);
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Logo par défaut illisible", ex);
+            return null;
+        }
+    }
+
     public KeyImage? Get(string? path)
     {
         if (string.IsNullOrWhiteSpace(path)) return null;

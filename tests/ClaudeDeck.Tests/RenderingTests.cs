@@ -109,16 +109,16 @@ public class RenderingTests
 public class LogoTests
 {
     [Fact]
-    public void Default_logo_is_drawn_spark()
+    public void Default_logo_is_the_embedded_image()
     {
         var v = KeyViewBuilder.Logo(null);
-        Assert.Equal(KeyIcon.Spark, v.Icon);
-        using var r = new KeyRenderer();
-        var img = r.Render(v);
-        // Le centre-haut porte un rayon (couleur terracotta), le coin reste au fond.
+        Assert.NotNull(v.Image);
+        Assert.Same(LogoImageCache.Default, v.Image);
         int Px(int x, int y) => (y * 80 + x) * 4;
-        Assert.True(img.Rgba[Px(40, 18)] > 150);
-        Assert.Equal(0x1C, img.Rgba[Px(1, 1)]);
+        var img = v.Image!;
+        Assert.Equal(0x11, img.Rgba[Px(1, 1)]);          // fond sombre
+        Assert.Equal(255, img.Rgba[Px(1, 1) + 3]);       // opaque
+        Assert.Contains(Enumerable.Range(0, 80 * 80), i => img.Rgba[i * 4] == 0xFF && img.Rgba[i * 4 + 1] == 0x63); // orange #FF6330
     }
 
     [Fact]
@@ -334,6 +334,8 @@ public class StyleTests
         var b = new KeyViewBuilder(TimeZoneInfo.Utc);
         var done = b.Session(S(SessionState.Done), Now, 0);
         Assert.Null(done.Main);
+        Assert.Null(b.Session(S(SessionState.Waiting), Now, 0).Main); // « Autoriser » : icône seule
+        Assert.Null(b.Session(S(SessionState.Waiting) with { WaitReason = WaitReason.Question }, Now, 0).Main);
         Assert.Equal(KeyIcon.Check, done.Icon);
         var idle = b.Session(S(SessionState.Idle) with { ContextUsedPercent = 34.4 }, Now, 0);
         Assert.Equal(KeyIcon.Prompt, idle.Icon);
