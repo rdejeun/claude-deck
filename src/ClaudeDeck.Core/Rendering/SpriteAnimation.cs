@@ -65,8 +65,6 @@ public sealed class SpriteAnimation
         var root = doc.RootElement;
         var w = root.GetProperty("frameWidth").GetInt32();
         var h = root.GetProperty("frameHeight").GetInt32();
-        var durations = root.GetProperty("durationsMs").EnumerateArray().Select(e => e.GetInt32()).ToList();
-
         using var png = asm.GetManifestResourceStream("ClaudeDeck.Animations.claude-spinner.png")
                         ?? throw new InvalidOperationException("Animation manquante.");
         using var strip = SKBitmap.Decode(png) ?? throw new InvalidDataException("Bande d'animation illisible.");
@@ -85,7 +83,22 @@ public sealed class SpriteAnimation
 
         var sequence = root.TryGetProperty("sequence", out var seq)
             ? seq.EnumerateArray().Select(e => e.GetInt32()).ToList()
-            : Enumerable.Range(0, durations.Count).ToList();
+            : Enumerable.Range(0, glyphCount).ToList();
+
+        // Soit une durée par étape (durationsMs), soit un cycle réparti en étapes égales (cycleMs) :
+        // les bornes sont arrondies à la milliseconde, la durée totale reste exacte.
+        List<int> durations;
+        if (root.TryGetProperty("durationsMs", out var d))
+        {
+            durations = d.EnumerateArray().Select(e => e.GetInt32()).ToList();
+        }
+        else
+        {
+            var cycle = root.GetProperty("cycleMs").GetInt32();
+            durations = Enumerable.Range(0, sequence.Count)
+                .Select(i => (int)Math.Round((i + 1) * (double)cycle / sequence.Count) - (int)Math.Round(i * (double)cycle / sequence.Count))
+                .ToList();
+        }
         if (sequence.Count != durations.Count || sequence.Any(i => i < 0 || i >= glyphs.Count))
             throw new InvalidDataException("Séquence d'animation incohérente.");
         return new SpriteAnimation(sequence.Select(i => glyphs[i]).ToList(), durations);

@@ -65,6 +65,12 @@ public sealed class Session
     public DateTimeOffset LastEventAt { get; set; }
     public ClientProcess? Client { get; set; }
 
+    /// <summary>Transcript JSONL de la session (champ transcript_path des hooks).</summary>
+    public string? TranscriptPath { get; set; }
+
+    /// <summary>Dernière lecture du modèle dans le transcript.</summary>
+    public DateTimeOffset? ModelProbedAt { get; set; }
+
     /// <summary>Nom court affiché sur la touche.</summary>
     public string DisplayName
     {

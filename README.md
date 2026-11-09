@@ -23,10 +23,10 @@ Une session garde sa touche tant qu'elle reste affichée ; la pastille « +N » 
 
 | État | Couleur | Déclencheur (hooks Claude Code) |
 |---|---|---|
-| Au repos | bleu nuit | `SessionStart`, Échap (`Notification` idle) |
-| Travaille | orange très sombre, astérisque animé, outil en cours (ou modèle, ex. « Opus 5.5 »), durée du tour | `UserPromptSubmit`, `PreToolUse`, `PostToolUse` |
+| Au repos | gris, invite « > » | `SessionStart`, Échap (`Notification` idle) |
+| Travaille | orange très sombre, astérisque animé (2 s, déphasé d'une touche à l'autre), modèle (« Opus 5.5 »), outil en cours et durée du tour | `UserPromptSubmit`, `PreToolUse`, `PostToolUse` |
 | **Autoriser ? / Question** | **bleu clignotant** | `PermissionRequest`, `Notification` (permission, elicitation), `AskUserQuestion` |
-| Terminé | vert, « il y a 3 min » | `Stop` |
+| Terminé | vert, coche seule, « il y a 3 min » | `Stop` |
 | Compaction | violet | `PreCompact` → `PostCompact` |
 | Erreur API | rouge | `StopFailure` |
 

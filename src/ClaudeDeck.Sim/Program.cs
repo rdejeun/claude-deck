@@ -149,7 +149,7 @@ static class Gallery
         var anim = Path.Combine(dir, "anim");
         Directory.CreateDirectory(anim);
         var working = S(ClaudeDeck.Core.Model.SessionState.Working, "Bash");
-        for (var t = 0; t < 1400; t += 50)
+        for (var t = 0; t < 2000; t += 50)
             File.WriteAllBytes(Path.Combine(anim, $"working-{t:0000}.png"),
                 ClaudeDeck.Core.Rendering.KeyRenderer.ToPng(r.Render(b.Session(working, now, t))));
         Console.WriteLine($"{views.Length} images écrites dans {dir}");

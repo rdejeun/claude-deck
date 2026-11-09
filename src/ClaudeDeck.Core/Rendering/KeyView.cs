@@ -17,6 +17,8 @@ public enum KeyIcon
     Compress,
     Cross,
     Idle,
+    /// <summary>Invite de commande « > » (session au repos).</summary>
+    Prompt,
     /// <summary>Grand motif d'étoile rayonnante (touche logo).</summary>
     Spark,
 }

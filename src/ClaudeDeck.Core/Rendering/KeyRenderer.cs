@@ -75,6 +75,11 @@ public sealed class KeyRenderer : IDisposable
             DrawSprite(c, sprite, 40f, 33f, 28f);
             if (v.Main is { } m) DrawText(c, m, mainFace, 13.5f, 10f, 3f, 77f, 59f, v.Foreground, SKTextAlign.Center);
         }
+        else if (v.Icon != KeyIcon.None && v.Main is null)
+        {
+            // Icône seule (ex. « terminé ») : plus grande, centrée entre le titre et la ligne du bas.
+            DrawIcon(c, v.Icon, 40f, 44f, 15f, v.Accent, v.SpinnerPhase);
+        }
         else if (v.Icon != KeyIcon.None)
         {
             DrawIcon(c, v.Icon, 40f, 33f, 10.5f, v.Accent, v.SpinnerPhase);
@@ -254,6 +259,15 @@ public sealed class KeyRenderer : IDisposable
                 var d = r * 0.4f;
                 c.DrawLine(cx - d, cy - d, cx + d, cy + d, stroke);
                 c.DrawLine(cx + d, cy - d, cx - d, cy + d, stroke);
+                break;
+            }
+            case KeyIcon.Prompt:
+            {
+                using var chevron = new SKPath();
+                chevron.MoveTo(cx - r * 0.45f, cy - r * 0.8f);
+                chevron.LineTo(cx + r * 0.45f, cy);
+                chevron.LineTo(cx - r * 0.45f, cy + r * 0.8f);
+                c.DrawPath(chevron, stroke);
                 break;
             }
             case KeyIcon.Idle:

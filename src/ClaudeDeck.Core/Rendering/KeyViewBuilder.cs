@@ -19,8 +19,8 @@ public sealed class KeyViewBuilder
     private static class C
     {
         public static readonly Rgb Black = Rgb.Hex(0x000000);
-        // Au repos (pause) : bleu nuit fixe.
-        public static readonly Rgb IdleBg = Rgb.Hex(0x0E1B33), IdleFg = Rgb.Hex(0xC7D5F0), IdleAccent = Rgb.Hex(0x6E8CC7), IdleMuted = Rgb.Hex(0x8FA5CC);
+        // Au repos : gris neutre.
+        public static readonly Rgb IdleBg = Rgb.Hex(0x1E1F23), IdleFg = Rgb.Hex(0xC9CBD0), IdleAccent = Rgb.Hex(0x9A9DA5), IdleMuted = Rgb.Hex(0x8A8D94);
         // Travaille : orange très sombre et saturé.
         public static readonly Rgb WorkBg = Rgb.Hex(0x3A1300), WorkFg = Rgb.Hex(0xFFE9DD), WorkAccent = Rgb.Hex(0xFF7A3D), WorkMuted = Rgb.Hex(0xFFB088);
         // En attente d'une réponse : bleu, clignotant (vif / sombre).
@@ -43,7 +43,8 @@ public sealed class KeyViewBuilder
     public SpriteAnimation? WorkingAnimation { get; set; }
 
     /// <param name="animMs">Horloge d'animation en millisecondes (clignotement, spinner, GIF).</param>
-    public KeyView Session(SessionSnapshot? s, DateTimeOffset now, long animMs, int hiddenCount = 0, int hiddenWaiting = 0)
+    /// <param name="phaseOffsetMs">Décalage propre à la touche, pour que plusieurs sessions ne s'animent pas en phase.</param>
+    public KeyView Session(SessionSnapshot? s, DateTimeOffset now, long animMs, int hiddenCount = 0, int hiddenWaiting = 0, long phaseOffsetMs = 0)
     {
         KeyView view;
         if (s is null)
@@ -54,8 +55,8 @@ public sealed class KeyViewBuilder
         {
             var title = s.DisplayName;
             var blinkOn = animMs / 500 % 2 == 0; // 1 Hz
-            var phase = animMs % 1000 / 1000.0;
-            var sprite = WorkingAnimation?.FrameAt(animMs);
+            var phase = (animMs + phaseOffsetMs) % 1000 / 1000.0;
+            var sprite = WorkingAnimation?.FrameAt(animMs + phaseOffsetMs);
             view = s.State switch
             {
                 SessionState.Working => new KeyView
@@ -65,10 +66,10 @@ public sealed class KeyViewBuilder
                     Icon = sprite is null ? KeyIcon.Spinner : KeyIcon.None,
                     SpinnerPhase = sprite is null ? phase : 0,
                     IconSprite = sprite,
-                    Main = WorkingLabel(s),
-                    // Sans outil en cours, on affiche le modèle, en graisse normale.
-                    MainRegular = s.CurrentTool is null && s.ActiveSubagents == 0,
-                    Sub = s.TurnStartedAt is { } t ? Duration(now - t) : null,
+                    // Le modèle (graisse normale) pendant tout le travail ; l'activité et le chrono en dessous.
+                    Main = s.Model ?? "Claude",
+                    MainRegular = true,
+                    Sub = WorkingSub(s, now),
                 },
                 SessionState.Waiting => new KeyView
                 {
@@ -84,7 +85,7 @@ public sealed class KeyViewBuilder
                 SessionState.Done => new KeyView
                 {
                     Background = C.DoneBg, Foreground = C.DoneFg, Accent = C.DoneAccent, Muted = Rgb.Hex(0x86EFAC),
-                    Title = title, Icon = KeyIcon.Check, Main = "Terminé",
+                    Title = title, Icon = KeyIcon.Check,
                     Sub = Ago(now - s.StateSince),
                 },
                 SessionState.Compacting => new KeyView
@@ -102,7 +103,7 @@ public sealed class KeyViewBuilder
                 _ => new KeyView
                 {
                     Background = C.IdleBg, Foreground = C.IdleFg, Accent = C.IdleAccent, Muted = C.IdleMuted,
-                    Title = title, Icon = KeyIcon.Idle, Main = "Au repos",
+                    Title = title, Icon = KeyIcon.Prompt, Main = "Au repos",
                     Sub = s.ContextUsedPercent is { } ctx ? $"contexte {ctx:0} %" : s.Model,
                 },
             };
@@ -120,14 +121,20 @@ public sealed class KeyViewBuilder
         return view;
     }
 
-    private static string WorkingLabel(SessionSnapshot s)
+    /// <summary>Ligne du bas d'une session au travail : « Terminal · 4:12 », « Agents ×2 · 0:35 », ou le seul chrono.</summary>
+    private static string? WorkingSub(SessionSnapshot s, DateTimeOffset now)
     {
-        if (s.CurrentTool is { } tool)
+        string? activity = null;
+        if (s.CurrentTool is { } tool) activity = ToolLabel(tool);
+        else if (s.ActiveSubagents > 0) activity = $"Agents ×{s.ActiveSubagents}";
+        var chrono = s.TurnStartedAt is { } t ? Duration(now - t) : null;
+        return (activity, chrono) switch
         {
-            var label = ToolLabel(tool);
-            return s.ActiveSubagents > 0 ? $"{label} ·{s.ActiveSubagents}" : label;
-        }
-        return s.ActiveSubagents > 0 ? $"Agents ×{s.ActiveSubagents}" : s.Model ?? "Claude";
+            (null, null) => null,
+            (null, _) => chrono,
+            (_, null) => activity,
+            _ => $"{activity} · {chrono}",
+        };
     }
 
     /// <summary>Nom d'outil court et lisible.</summary>

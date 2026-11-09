@@ -189,3 +189,37 @@ public class ModelTrackingTests
         Assert.Equal("Sonnet 5.5", t.Snapshot()[0].Model);
     }
 }
+
+public class TranscriptModelTests
+{
+    [Fact]
+    public void Reads_last_main_agent_model_from_transcript()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"cd-tr-{Guid.NewGuid():N}.jsonl");
+        try
+        {
+            File.WriteAllLines(path,
+            [
+                """{"type":"user","message":{"role":"user","content":"x"}}""",
+                """{"type":"assistant","message":{"model":"claude-sonnet-5-5","content":[]}}""",
+                """{"type":"assistant","message":{"model":"claude-opus-5-5","content":[{"type":"tool_use","input":{"model":"haiku"}}]}}""",
+                """{"type":"assistant","isSidechain":true,"message":{"model":"claude-haiku-4-5-20251001","content":[]}}""",
+                """{"type":"assistant","message":{"model":"<synthetic>","content":[]}}""",
+                """{"type":"user","message":{"role":"user","content":"y"}}""",
+            ]);
+            Assert.Equal("claude-opus-5-5", TranscriptModelReader.LastModel(path));
+            Assert.Null(TranscriptModelReader.LastModel(path + ".absent"));
+
+            var time = new FakeTime();
+            var t = new SessionTracker(time);
+            t.HandleHook(J.Hook("a", "UserPromptSubmit", new { transcript_path = path }));
+            Assert.Null(t.Snapshot()[0].Model);
+            t.RefreshModelsFromTranscripts(TranscriptModelReader.LastModel);
+            Assert.Equal("Opus 5.5", t.Snapshot()[0].Model);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+}

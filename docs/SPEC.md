@@ -76,7 +76,7 @@ affiche la status line préexistante de l'utilisateur (exécutée via Git Bash, 
 | `StopFailure` | → Erreur |
 | `PreCompact` / `PostCompact` | → Compaction / retour à Travaille ou Au repos |
 | `SubagentStart` / `SubagentStop` | compteur d'agents (≥ 0) |
-| `SessionStart.model`, `PostModelSwitch.to_model` | modèle affiché (« claude-opus-5-5 » → « Opus 5.5 ») ; la status line (`model.display_name`) le met aussi à jour |
+| `SessionStart.model`, `PostModelSwitch.to_model` | modèle affiché (« claude-opus-5-5 » → « Opus 5.5 ») ; aussi mis à jour par la status line (`model.display_name`) et par la lecture du transcript (`transcript_path`, dernière réponse de l'agent principal, toutes les 15 s au travail) — seule source pour l'extension VS Code |
 | `SessionEnd` | suppression |
 | appui sur la touche | Terminé/Erreur → Au repos |
 | maintenance (10 s) | Terminé/Erreur → Au repos après 30 min ; suppression si processus mort ou 12 h sans événement |
@@ -111,7 +111,7 @@ VID `0x0FD9`, PID `0x0063` (Mini) ou `0x0090` (Mini MK.2) — liste configurable
 | Réinitialisation | Fonction : `0B 63` |
 | Touches | Entrée : `01 <k1> … <k6>` (0/1) |
 
-Animations : horloge en millisecondes (clignotement 1 Hz, astérisque de Claude Code 21 images / 1,4 s, ou GIF
+Animations : horloge en millisecondes (clignotement 1 Hz, astérisque 14 étapes égales sur 2 s, déphasé d'un tiers de cycle par touche, ou GIF
 personnel décodé par SkiaSharp), rendu à `display.animationFps` (12 par défaut) ; une image n'est renvoyée que si
 la touche a changé.
 

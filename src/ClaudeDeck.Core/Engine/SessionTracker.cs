@@ -68,6 +68,8 @@ public sealed class SessionTracker
                 s.LastEventAt = now;
                 var cwd = payload.Str("cwd");
                 if (!string.IsNullOrEmpty(cwd)) s.Cwd = cwd;
+                var transcript = payload.Str("transcript_path");
+                if (!string.IsNullOrEmpty(transcript)) s.TranscriptPath = transcript;
                 if (client is not null && (s.Client is null || s.Client.Pid != client.Pid)) s.Client = client;
 
                 Apply(s, eventName, payload, now);
@@ -217,6 +219,45 @@ public sealed class SessionTracker
             s.CostUsd = payload.Obj("cost")?.Num("total_cost_usd") ?? s.CostUsd;
         }
         Changed?.Invoke();
+    }
+
+    /// <summary>
+    /// Met à jour le modèle des sessions à partir de leur transcript : au plus toutes les 15 s par session au travail,
+    /// et dès que possible pour une session dont le modèle est inconnu. La lecture du fichier se fait hors verrou.
+    /// </summary>
+    public void RefreshModelsFromTranscripts(Func<string, string?> readModelId)
+    {
+        var now = _time.GetUtcNow();
+        List<(string Id, string Path)> due;
+        lock (_gate)
+        {
+            due = _sessions.Values
+                .Where(s => s.TranscriptPath is not null)
+                .Where(s => s.Model is null
+                    ? s.ModelProbedAt is null || now - s.ModelProbedAt > TimeSpan.FromSeconds(4)
+                    : s.State is SessionState.Working && (s.ModelProbedAt is null || now - s.ModelProbedAt > TimeSpan.FromSeconds(15)))
+                .Select(s => (s.Id, s.TranscriptPath!))
+                .ToList();
+            foreach (var (id, _) in due) _sessions[id].ModelProbedAt = now;
+        }
+
+        var changed = false;
+        foreach (var (id, path) in due)
+        {
+            string? model;
+            try { model = ModelName.Format(readModelId(path)); }
+            catch { continue; }
+            if (model is null) continue;
+            lock (_gate)
+            {
+                if (_sessions.TryGetValue(id, out var s) && s.Model != model)
+                {
+                    s.Model = model;
+                    changed = true;
+                }
+            }
+        }
+        if (changed) Changed?.Invoke();
     }
 
     /// <summary>L'utilisateur a consulté la session (appui sur la touche) : « terminé » ou « erreur » repasse au repos.</summary>

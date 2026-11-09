@@ -90,7 +90,7 @@ public sealed class DeckController : IDisposable
     {
         var fps = Math.Clamp(_config.Current.Display.AnimationFps, 1, 30);
         _tick = new Timer(_ => Tick(), null, 0, 1000 / fps);
-        _sweep = new Timer(_ => Sweep(), null, TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10));
+        _sweep = new Timer(_ => Sweep(), null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5));
     }
 
     /// <summary>Affiche la mire de test pendant quelques secondes (vérification de l'orientation).</summary>
@@ -174,6 +174,8 @@ public sealed class DeckController : IDisposable
                 try { return _platform.IsAlive(c); }
                 catch { return true; }
             });
+            // Modèle réellement utilisé, lu dans le transcript (l'extension VS Code n'a pas de status line).
+            _sessions.RefreshModelsFromTranscripts(TranscriptModelReader.LastModel);
         }
         catch (Exception ex)
         {
@@ -241,8 +243,10 @@ public sealed class DeckController : IDisposable
         {
             // Le compteur de sessions masquées s'affiche sur la dernière touche de la ligne.
             var last = i == SessionSlots - 1;
+            // Touches déphasées d'un tiers de cycle : plusieurs sessions au travail ne s'animent pas en même temps.
+            var cycle = _builder.WorkingAnimation?.TotalMs ?? 1000;
             views[i] = _builder.Session(alloc.Slots[i], now, animMs,
-                last ? alloc.HiddenCount : 0, last ? alloc.HiddenWaiting : 0);
+                last ? alloc.HiddenCount : 0, last ? alloc.HiddenWaiting : 0, phaseOffsetMs: i * cycle / SessionSlots);
         }
 
         var plan = _plan.Snapshot();

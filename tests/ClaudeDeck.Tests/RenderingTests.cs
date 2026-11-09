@@ -235,7 +235,7 @@ public class AnimationTests
         var a = SpriteAnimation.LoadEmbeddedClaudeSpinner();
         Assert.Equal(14, a.Frames.Count);
         Assert.Equal(8, a.Frames.Distinct().Count()); // 8 glyphes partagés par les 14 étapes
-        Assert.Equal(1400, a.TotalMs);
+        Assert.Equal(2000, a.TotalMs);
         Assert.Equal(26, a.Frames[0].Width);
         Assert.Equal(28, a.Frames[0].Height);
         // Coin transparent, glyphe opaque quelque part.
@@ -314,16 +314,43 @@ public class StyleTests
     public void Model_ids_are_humanized(string id, string expected) => Assert.Equal(expected, ModelName.Format(id));
 
     [Fact]
-    public void Thinking_shows_model_in_regular_weight()
+    public void Working_always_shows_model_and_activity_below()
     {
         var b = new KeyViewBuilder(TimeZoneInfo.Utc);
         var v = b.Session(S(SessionState.Working), Now, 0);
         Assert.Equal("Opus 5.5", v.Main);
         Assert.True(v.MainRegular);
+        Assert.Equal("30 s", v.Sub);
         var withTool = b.Session(S(SessionState.Working, "Bash"), Now, 0);
-        Assert.Equal("Terminal", withTool.Main);
-        Assert.False(withTool.MainRegular);
+        Assert.Equal("Opus 5.5", withTool.Main);
+        Assert.True(withTool.MainRegular);
+        Assert.Equal("Terminal · 30 s", withTool.Sub);
         Assert.Equal("Claude", b.Session(S(SessionState.Working, model: null), Now, 0).Main);
+    }
+
+    [Fact]
+    public void Done_is_icon_only_and_idle_is_grey_prompt()
+    {
+        var b = new KeyViewBuilder(TimeZoneInfo.Utc);
+        var done = b.Session(S(SessionState.Done), Now, 0);
+        Assert.Null(done.Main);
+        Assert.Equal(KeyIcon.Check, done.Icon);
+        var idle = b.Session(S(SessionState.Idle), Now, 0);
+        Assert.Equal(KeyIcon.Prompt, idle.Icon);
+        var bg = idle.Background;
+        Assert.True(Math.Abs(bg.R - bg.B) <= 8 && Math.Abs(bg.R - bg.G) <= 8); // gris neutre
+        using var r = new KeyRenderer();
+        Assert.Equal(80 * 80 * 4, r.Render(done).Rgba.Length);
+    }
+
+    [Fact]
+    public void Slots_are_out_of_phase()
+    {
+        var b = new KeyViewBuilder(TimeZoneInfo.Utc) { WorkingAnimation = SpriteAnimation.LoadEmbeddedClaudeSpinner() };
+        var s = S(SessionState.Working);
+        var cycle = b.WorkingAnimation!.TotalMs;
+        var frames = Enumerable.Range(0, 3).Select(i => b.Session(s, Now, 0, phaseOffsetMs: i * cycle / 3).IconSprite).ToList();
+        Assert.Equal(3, frames.Distinct().Count());
     }
 
     [Fact]
@@ -334,7 +361,6 @@ public class StyleTests
         static bool Blueish(Rgb c) => c.B > c.R && c.B > c.G;
         static bool Greenish(Rgb c) => c.G > c.R && c.G > c.B;
         Assert.True(Orangeish(b.Session(S(SessionState.Working), Now, 0).Background));
-        Assert.True(Blueish(b.Session(S(SessionState.Idle), Now, 0).Background));
         Assert.True(Blueish(b.Session(S(SessionState.Waiting), Now, 0).Background));
         Assert.True(Blueish(b.Session(S(SessionState.Waiting), Now, 500).Background));
         Assert.True(Greenish(b.Session(S(SessionState.Done), Now, 0).Background));
@@ -353,11 +379,11 @@ public class StyleTests
     }
 
     [Fact]
-    public void Spinner_steps_have_equal_duration()
+    public void Spinner_cycle_is_two_seconds_with_equal_steps()
     {
         var a = SpriteAnimation.LoadEmbeddedClaudeSpinner();
-        Assert.Equal(1400, a.TotalMs);
-        var step = a.TotalMs / a.Frames.Count;
-        for (var i = 0; i < a.Frames.Count; i++) Assert.Same(a.Frames[i], a.FrameAt(i * step + step / 2));
+        Assert.Equal(2000, a.TotalMs);
+        var step = (double)a.TotalMs / a.Frames.Count; // 142,86 ms
+        for (var i = 0; i < a.Frames.Count; i++) Assert.Same(a.Frames[i], a.FrameAt((long)(i * step + step / 2)));
     }
 }
