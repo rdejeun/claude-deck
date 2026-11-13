@@ -338,9 +338,22 @@ public sealed class KeyRenderer : IDisposable
             }
             case KeyIcon.Compress:
             {
-                c.DrawLine(cx - r, cy - r * 0.6f, cx + r, cy - r * 0.6f, stroke);
-                c.DrawLine(cx - r * 0.65f, cy, cx + r * 0.65f, cy, stroke);
-                c.DrawLine(cx - r * 0.3f, cy + r * 0.6f, cx + r * 0.3f, cy + r * 0.6f, stroke);
+                // « Écoulement » : l'entonnoir (trois traits de plus en plus courts) se remplit trait après trait,
+                // du haut vers le bas, puis s'éteint ; son contour pâle reste toujours visible. Phase 0-1 = un cycle.
+                var widths = new[] { 1f, 0.65f, 0.3f };
+                var ys = new[] { -0.6f, 0f, 0.6f };
+                var p = (float)phase;
+                for (var i = 0; i < 3; i++)
+                {
+                    var on = Math.Clamp((p - i * 0.2f) / 0.15f, 0f, 1f);
+                    if (p > 0.82f) on *= Math.Clamp((1f - p) / 0.18f, 0f, 1f);
+                    using var line = new SKPaint
+                    {
+                        Color = ToSk(color).WithAlpha((byte)(55 + 200 * on)), IsAntialias = true,
+                        Style = SKPaintStyle.Stroke, StrokeWidth = 2.6f, StrokeCap = SKStrokeCap.Round,
+                    };
+                    c.DrawLine(cx - r * widths[i], cy + r * ys[i], cx + r * widths[i], cy + r * ys[i], line);
+                }
                 break;
             }
             case KeyIcon.Cross:

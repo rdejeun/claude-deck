@@ -28,7 +28,7 @@ Une session garde sa touche tant qu'elle reste affichée ; la pastille « +N » 
 | **Autoriser / Question** | **bleu**, clignotant pendant 10 s puis fixe, icône seule (triangle ou « ? ») ; en bas, l'outil concerné ou le titre de la question (`header` d'AskUserQuestion) | `PermissionRequest`, `Notification` (permission, elicitation), `AskUserQuestion` |
 | Tâche de fond | couleurs du travail, roue crantée en lignes, lente, « Shell », chrono qui continue : Claude a fini, une commande lancée en arrière-plan tourne encore | `Stop` avec une tâche `shell` dans `background_tasks` |
 | Terminé | vert, coche seule, « il y a 3 min » | `Stop` |
-| Compaction | violet | `PreCompact` → `PostCompact` |
+| Compaction | violet, entonnoir animé qui se remplit (1,6 s), durée `mm:ss` ; masquée pour une session au repos | `PreCompact` → fin de compaction |
 | Erreur API | rouge | `StopFailure` |
 
 **Appui sur une session** : met au premier plan la fenêtre qui l'héberge (VS Code — la bonne fenêtre si plusieurs —

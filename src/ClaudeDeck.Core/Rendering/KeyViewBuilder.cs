@@ -110,8 +110,11 @@ public sealed class KeyViewBuilder
                 SessionState.Compacting => new KeyView
                 {
                     Background = C.CompactBg, Foreground = C.CompactFg, Accent = C.CompactAccent, Muted = Rgb.Hex(0xC4B5FD),
-                    Title = title, Icon = KeyIcon.Compress, Main = "Compaction",
-                    Sub = Duration(now - s.StateSince),
+                    // Icône animée (cycle de 1,6 s), texte et chrono harmonisés avec la tuile de travail.
+                    Title = title, Icon = KeyIcon.Compress,
+                    SpinnerPhase = (animMs + phaseOffsetMs) % 1600 / 1600.0,
+                    Main = "Compaction", MainRegular = true,
+                    Sub = Chrono(now - s.StateSince), SubMono = true,
                 },
                 SessionState.Error => new KeyView
                 {

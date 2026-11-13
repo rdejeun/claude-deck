@@ -150,6 +150,12 @@ static class Gallery
             File.WriteAllBytes(Path.Combine(dir, name + ".png"), ClaudeDeck.Core.Rendering.KeyRenderer.ToPng(r.Render(view)));
 
         // Animation « travaille » : une image toutes les 50 ms sur un cycle complet.
+        var compactDir = Path.Combine(dir, "compact");
+        Directory.CreateDirectory(compactDir);
+        for (var t = 0; t < 1600; t += 80)
+            File.WriteAllBytes(Path.Combine(compactDir, $"c-{t:0000}.png"),
+                ClaudeDeck.Core.Rendering.KeyRenderer.ToPng(r.Render(b.Session(S(ClaudeDeck.Core.Model.SessionState.Compacting), now, t))));
+
         var gearDir = Path.Combine(dir, "gear");
         Directory.CreateDirectory(gearDir);
         for (var t = 0; t < 8000; t += 125)

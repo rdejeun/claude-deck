@@ -493,3 +493,25 @@ public class BackgroundTaskViewTests
         Assert.NotEqual(r.Render(v).Hash, r.Render(b.Session(s, now, 500)).Hash);
     }
 }
+
+
+public class CompactionViewTests
+{
+    [Fact]
+    public void Compaction_tile_is_animated_and_harmonized()
+    {
+        var now = new DateTimeOffset(2026, 11, 13, 23, 52, 0, TimeSpan.Zero);
+        var b = new KeyViewBuilder(TimeZoneInfo.Utc);
+        var s = new SessionSnapshot("id", "passavant", null, null, "Opus 5.5", SessionState.Compacting, now.AddSeconds(-95),
+            WaitReason.None, null, null, now.AddMinutes(-5), null, 0, null, null, now, null);
+        var v0 = b.Session(s, now, 0);
+        var v1 = b.Session(s, now, 400);
+        Assert.Equal(KeyIcon.Compress, v0.Icon);
+        Assert.True(v0.MainRegular);
+        Assert.True(v0.SubMono);
+        Assert.Equal("01:35", v0.Sub);
+        Assert.NotEqual(v0.SpinnerPhase, v1.SpinnerPhase);
+        using var r = new KeyRenderer();
+        Assert.NotEqual(r.Render(v0).Hash, r.Render(v1).Hash); // l'entonnoir s'anime
+    }
+}
