@@ -64,6 +64,9 @@ public sealed class Session
     /// <summary>Agents encore en cours en arrière-plan d'après le dernier Stop / SubagentStop (« background_tasks »).</summary>
     public int BackgroundAgents { get; set; }
 
+    /// <summary>État avant la compaction en cours, rétabli à sa fin.</summary>
+    public SessionState StateBeforeCompact { get; set; } = SessionState.Idle;
+
     /// <summary>Début du dernier tour terminé (pour reprendre le chrono si un sous-agent se manifeste après la fin du tour).</summary>
     public DateTimeOffset? LastTurnStartedAt { get; set; }
 

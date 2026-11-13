@@ -108,8 +108,14 @@ public sealed class SessionTracker
 
         switch (eventName)
         {
+            case "SessionStart" when p.Str("source") == "compact" && s.State == SessionState.Compacting:
+                // Redémarrage qui conclut une compaction : on reprend là où l'on en était.
+                s.Model = ModelName.Format(p.Str("model")) ?? s.Model;
+                EndCompaction(s, now);
+                break;
+
             case "SessionStart":
-                // Une reprise ou un /clear repart au repos ; un démarrage après compaction aussi.
+                // Une reprise ou un /clear repart au repos.
                 s.Model = ModelName.Format(p.Str("model")) ?? s.Model;
                 SetState(s, SessionState.Idle, now);
                 s.CurrentTool = null;
@@ -243,8 +249,18 @@ public sealed class SessionTracker
             {
                 // Claude Code envoie aussi SubagentStop pour ses agents internes (suggestions, /btw) sans SubagentStart :
                 // on ne retire que des agents connus, au lieu de décrémenter un compteur.
-                if (p.Str("agent_id") is { Length: > 0 } stoppedId) s.RunningAgentIds.Remove(stoppedId);
-                if (CountBackgroundAgents(p) is { } background) s.BackgroundAgents = background;
+                var stoppedId = p.Str("agent_id");
+                if (!string.IsNullOrEmpty(stoppedId)) s.RunningAgentIds.Remove(stoppedId);
+
+                // La compaction est menée par un agent interne (agent_type vide) : sa fin conclut la compaction,
+                // même quand PostCompact n'est pas envoyé.
+                if (s.State == SessionState.Compacting && string.IsNullOrEmpty(p.Str("agent_type"))) EndCompaction(s, now);
+
+                // La liste « background_tasks » de ce SubagentStop contient encore l'agent qui s'arrête : on l'en retire.
+                // (seulement pour un vrai sous-agent : les agents internes, sans type, ne figurent pas dans cette liste).
+                var isRealSubagent = !string.IsNullOrEmpty(stoppedId) && !string.IsNullOrEmpty(p.Str("agent_type"));
+                if (CountBackgroundAgents(p, excludeStoppingAgent: isRealSubagent ? stoppedId : null) is { } background)
+                    s.BackgroundAgents = background;
                 else if (s.RunningAgentIds.Count == 0) s.BackgroundAgents = 0;
                 if (s.AwaitingBackgroundAgents && s.BackgroundAgents == 0 && s.RunningAgentIds.Count == 0)
                 {
@@ -256,15 +272,28 @@ public sealed class SessionTracker
             }
 
             case "PreCompact":
+                if (s.State != SessionState.Compacting) s.StateBeforeCompact = s.State;
                 SetState(s, SessionState.Compacting, now);
                 break;
 
             case "PostCompact":
-                if (s.State == SessionState.Compacting)
-                    SetState(s, s.TurnStartedAt is null ? SessionState.Idle : SessionState.Working, now);
+                EndCompaction(s, now);
                 break;
         }
     }
+
+    /// <summary>Fin de compaction : au travail si un tour est en cours, sinon l'état d'avant (terminé, erreur) ou au repos.</summary>
+    private static void EndCompaction(Session s, DateTimeOffset now)
+    {
+        if (s.State != SessionState.Compacting) return;
+        var next = s.TurnStartedAt is not null || s.AwaitingBackgroundAgents ? SessionState.Working
+            : s.StateBeforeCompact is SessionState.Done or SessionState.Error ? s.StateBeforeCompact
+            : SessionState.Idle;
+        SetState(s, next, now);
+    }
+
+    /// <summary>Une compaction sans nouvelles depuis ce délai est considérée terminée (filet de sécurité).</summary>
+    public TimeSpan CompactionTimeout { get; set; } = TimeSpan.FromMinutes(3);
 
     /// <summary>
     /// Types de tâches d'arrière-plan qui sont du travail d'agent. Les tâches « shell » (serveur lancé en fond…),
@@ -278,10 +307,15 @@ public sealed class SessionTracker
     };
 
     /// <summary>Nombre d'agents en cours d'après « background_tasks », ou null si le champ est absent.</summary>
-    internal static int? CountBackgroundAgents(JsonElement p)
+    /// <param name="excludeStoppingAgent">
+    /// Pour un SubagentStop : identifiant de l'agent qui s'arrête, encore listé « running ». L'entrée de même id est
+    /// ignorée ; à défaut de correspondance, une entrée « subagent » est retirée du compte.
+    /// </param>
+    internal static int? CountBackgroundAgents(JsonElement p, string? excludeStoppingAgent = null)
     {
         if (!p.TryGetProperty("background_tasks", out var tasks) || tasks.ValueKind != JsonValueKind.Array) return null;
         var count = 0;
+        var selfExcluded = false;
         foreach (var t in tasks.EnumerateArray())
         {
             var type = t.Str("type");
@@ -291,10 +325,22 @@ public sealed class SessionTracker
                             status.Equals("failed", StringComparison.OrdinalIgnoreCase) ||
                             status.Equals("killed", StringComparison.OrdinalIgnoreCase) ||
                             status.Equals("cancelled", StringComparison.OrdinalIgnoreCase));
-            if (type is not null && AgentTaskTypes.Contains(type) && !finished) count++;
+            if (type is null || !AgentTaskTypes.Contains(type) || finished) continue;
+            var id = t.Str("id");
+            if (!selfExcluded && !string.IsNullOrEmpty(excludeStoppingAgent) && id is not null &&
+                (id == excludeStoppingAgent || id.Contains(excludeStoppingAgent, StringComparison.Ordinal)))
+            {
+                selfExcluded = true;
+                continue;
+            }
+            count++;
         }
+        if (excludeStoppingAgent is not null && !selfExcluded && count > 0 && IsSubagentListed(tasks)) count--;
         return count;
     }
+
+    private static bool IsSubagentListed(JsonElement tasks) =>
+        tasks.EnumerateArray().Any(t => t.Str("type") is "subagent" or "local_agent");
 
     private static void EndTurn(Session s, DateTimeOffset now)
     {
@@ -459,6 +505,12 @@ public sealed class SessionTracker
                     _sessions.Remove(s.Id);
                     changed = true;
                     continue;
+                }
+
+                if (s.State == SessionState.Compacting && now - s.LastEventAt > CompactionTimeout)
+                {
+                    EndCompaction(s, now);
+                    changed = true;
                 }
 
                 if (DoneFadeAfter > TimeSpan.Zero &&

@@ -437,3 +437,70 @@ public class QuestionTitleTests
         Assert.Null(b.Session(s with { QuestionTitle = null }, now, 0).Sub);
     }
 }
+
+/// <summary>Séquences relevées dans le journal d'un utilisateur (extension VS Code, 13/11/2026).</summary>
+public class RealWorldSequenceTests
+{
+    private static object Bg(params (string Type, string Status)[] tasks) =>
+        tasks.Select((x, i) => new { id = $"task-{i}", type = x.Type, status = x.Status }).ToArray();
+
+    [Fact]
+    public void Compaction_ends_with_internal_agent_stop_without_postcompact()
+    {
+        var t = new SessionTracker(new FakeTime());
+        t.HandleHook(J.Hook("c", "PreCompact"));
+        Assert.Equal(SessionState.Compacting, t.Snapshot()[0].State);
+        t.HandleHook(J.Hook("c", "SubagentStop", new { agent_id = "aa3743de1e311e8d4", agent_type = "", background_tasks = Bg() }));
+        Assert.Equal(SessionState.Idle, t.Snapshot()[0].State);
+    }
+
+    [Fact]
+    public void Compaction_restores_previous_state_or_times_out()
+    {
+        var time = new FakeTime();
+        var t = new SessionTracker(time);
+        t.HandleHook(J.Hook("c", "Stop", new { background_tasks = Bg() }));
+        t.HandleHook(J.Hook("c", "PreCompact"));
+        t.HandleHook(J.Hook("c", "PostCompact"));
+        Assert.Equal(SessionState.Done, t.Snapshot()[0].State);
+
+        t.HandleHook(J.Hook("d", "UserPromptSubmit"));
+        t.HandleHook(J.Hook("d", "PreCompact", new { trigger = "auto" }));
+        time.Advance(TimeSpan.FromMinutes(4)); // aucune nouvelle : filet de sécurité
+        t.Sweep();
+        Assert.Equal(SessionState.Working, t.Snapshot().Single(x => x.Id == "d").State);
+    }
+
+    [Fact]
+    public void Stopping_subagent_listed_as_running_in_its_own_stop_is_not_counted()
+    {
+        // 23:01:33 → 23:01:47 : sous-agent relancé après la fin du tour principal, puis SubagentStop qui le liste encore.
+        var t = new SessionTracker(new FakeTime());
+        t.HandleHook(J.Hook("f", "UserPromptSubmit"));
+        t.HandleHook(J.Hook("f", "Stop", new { background_tasks = Bg(("shell", "running"), ("shell", "running")) }));
+        Assert.Equal(SessionState.Done, t.Snapshot()[0].State);
+        t.HandleHook(J.Hook("f", "SubagentStart", new { agent_id = "aa9772ed2572a84dc", agent_type = "general-purpose" }));
+        t.HandleHook(J.Hook("f", "PreToolUse", new { tool_name = "Bash", agent_id = "aa9772ed2572a84dc", agent_type = "general-purpose" }));
+        Assert.Equal(SessionState.Working, t.Snapshot()[0].State);
+        t.HandleHook(J.Hook("f", "SubagentStop", new
+        {
+            agent_id = "aa9772ed2572a84dc", agent_type = "general-purpose",
+            background_tasks = Bg(("subagent", "running"), ("shell", "running")),
+        }));
+        Assert.Equal(SessionState.Done, t.Snapshot()[0].State);
+    }
+
+    [Fact]
+    public void Another_background_subagent_still_counts()
+    {
+        var t = new SessionTracker(new FakeTime());
+        t.HandleHook(J.Hook("g", "UserPromptSubmit"));
+        t.HandleHook(J.Hook("g", "SubagentStart", new { agent_id = "a1", agent_type = "general-purpose" }));
+        t.HandleHook(J.Hook("g", "SubagentStart", new { agent_id = "a2", agent_type = "general-purpose" }));
+        t.HandleHook(J.Hook("g", "Stop", new { background_tasks = Bg(("subagent", "running"), ("subagent", "running")) }));
+        t.HandleHook(J.Hook("g", "SubagentStop", new { agent_id = "a1", agent_type = "general-purpose", background_tasks = Bg(("subagent", "running"), ("subagent", "running")) }));
+        Assert.Equal(SessionState.Working, t.Snapshot()[0].State); // a2 tourne encore
+        t.HandleHook(J.Hook("g", "SubagentStop", new { agent_id = "a2", agent_type = "general-purpose", background_tasks = Bg(("subagent", "running")) }));
+        Assert.Equal(SessionState.Done, t.Snapshot()[0].State);
+    }
+}
