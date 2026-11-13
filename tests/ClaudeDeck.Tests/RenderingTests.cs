@@ -438,3 +438,35 @@ public class ChronoTests
         Assert.InRange(Extent(r.Render(b.Session(S(71), now, 0))) - Extent(r.Render(b.Session(S(488), now, 0))), -2, 2);
     }
 }
+
+public class MoneyTypographyTests
+{
+    [Theory]
+    [InlineData("37,60 €", "37", ",60", "€")]
+    [InlineData("~23,50 €", "~23", ",50", "€")]
+    [InlineData("41,27 $", "41", ",27", "$")]
+    [InlineData("12,00 CHF", "12", ",00", "CHF")]
+    public void Splits_units_cents_currency(string text, string units, string cents, string currency)
+    {
+        var parts = KeyRenderer.SplitMoney(text.Replace(' ', ' '));
+        Assert.NotNull(parts);
+        Assert.Equal((units, cents, currency), parts!.Value);
+    }
+
+    [Theory]
+    [InlineData("128 $")]
+    [InlineData("62 %")]
+    [InlineData("—")]
+    public void Texts_without_cents_are_left_alone(string text) => Assert.Null(KeyRenderer.SplitMoney(text));
+
+    [Fact]
+    public void Money_flag_is_set_on_credit_balance()
+    {
+        var now = new DateTimeOffset(2026, 11, 13, 10, 0, 0, TimeSpan.Zero);
+        var v = new KeyViewBuilder(TimeZoneInfo.Utc).SessionWindow(new RateWindow(100, now.AddHours(1), now, "x"),
+            new UsageCredits(true, 50m, 12.4m, "EUR", now), now);
+        Assert.True(v.MainMoney);
+        using var r = new KeyRenderer();
+        Assert.NotEqual(r.Render(v).Hash, r.Render(v with { MainMoney = false }).Hash);
+    }
+}

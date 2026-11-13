@@ -228,6 +228,7 @@ public sealed class KeyViewBuilder
         var view = plain with
         {
             Main = (stale ? "~" : "") + Money(amount, c.Currency),
+            MainMoney = true,
             Sub = plain.Sub, // « → 18:43 » : retour au forfait
         };
 
@@ -297,6 +298,7 @@ public sealed class KeyViewBuilder
         return view with
         {
             Main = Money(api.Spend7dUsd.Value),
+            MainMoney = true,
             Sub = sub,
             Background = low ? C.LowBalanceBg : C.GaugeBg,
             Foreground = stale ? C.StaleFg : C.GaugeFg,

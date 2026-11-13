@@ -45,6 +45,9 @@ public sealed record KeyView
     /// <summary>Ligne du bas en chiffres à largeur fixe (chrono : pas de décalage d'une seconde à l'autre).</summary>
     public bool SubMono { get; init; }
 
+    /// <summary>Le texte principal est un montant : virgule et centimes dessinés plus petits que l'unité et la devise.</summary>
+    public bool MainMoney { get; init; }
+
     /// <summary>Ligne du bas, discrète.</summary>
     public string? Sub { get; init; }
 

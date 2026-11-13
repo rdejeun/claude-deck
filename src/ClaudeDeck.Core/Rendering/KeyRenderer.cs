@@ -99,7 +99,8 @@ public sealed class KeyRenderer : IDisposable
         }
         else if (v.Main is { } m)
         {
-            DrawText(c, m, _bold, 22f, 12f, 3f, 77f, 47f, v.Foreground, SKTextAlign.Center);
+            if (v.MainMoney && SplitMoney(m) is { } parts) DrawMoney(c, parts, 22f, 12f, 47f, v.Foreground);
+            else DrawText(c, m, _bold, 22f, 12f, 3f, 77f, 47f, v.Foreground, SKTextAlign.Center);
         }
 
         // Ligne du bas (chrono) au plus près du bord inférieur.
@@ -113,7 +114,11 @@ public sealed class KeyRenderer : IDisposable
     private void DrawGaugeLayout(SKCanvas c, KeyView v)
     {
         if (v.Title is { } t) DrawText(c, t, _semi, 10.5f, 8f, 3f, 77f, 14f, v.Muted, SKTextAlign.Center);
-        if (v.Main is { } m) DrawText(c, m, _bold, 22f, 13f, 3f, 77f, 41f, v.Foreground, SKTextAlign.Center);
+        if (v.Main is { } m)
+        {
+            if (v.MainMoney && SplitMoney(m) is { } parts) DrawMoney(c, parts, 22f, 13f, 41f, v.Foreground);
+            else DrawText(c, m, _bold, 22f, 13f, 3f, 77f, 41f, v.Foreground, SKTextAlign.Center);
+        }
 
         if (v.BarText is { } warning)
         {
@@ -189,6 +194,41 @@ public sealed class KeyRenderer : IDisposable
         {
             handle.Free();
         }
+    }
+
+    /// <summary>Découpe « 37,60 € » en (« 37 », « ,60 », « € ») ; null si le texte n'a pas de centimes.</summary>
+    internal static (string Units, string Cents, string Currency)? SplitMoney(string text)
+    {
+        var m = System.Text.RegularExpressions.Regex.Match(text, @"^(?<u>.*?\d)(?<c>,\d+)(?:[\s  ]+(?<cur>\S+))?$");
+        if (!m.Success) return null;
+        return (m.Groups["u"].Value, m.Groups["c"].Value, m.Groups["cur"].Success ? m.Groups["cur"].Value : "");
+    }
+
+    /// <summary>
+    /// Montant typographié : unités et devise à la taille principale, virgule et centimes à 60 %, sur la même ligne de
+    /// base, le tout centré et réduit si nécessaire pour tenir dans la largeur.
+    /// </summary>
+    private void DrawMoney(SKCanvas c, (string Units, string Cents, string Currency) parts, float size, float minSize, float baseline, Rgb color)
+    {
+        const float maxWidth = 74f, centsRatio = 0.6f;
+        using var big = new SKFont(_bold, size) { Subpixel = true, Edging = SKFontEdging.Antialias };
+        using var small = new SKFont(_bold, size * centsRatio) { Subpixel = true, Edging = SKFontEdging.Antialias };
+        float Gap() => big.Size * 0.18f;
+        float Width() => big.MeasureText(parts.Units) + small.MeasureText(parts.Cents) +
+                         (parts.Currency.Length > 0 ? Gap() + big.MeasureText(parts.Currency) : 0);
+        while (big.Size > minSize && Width() > maxWidth)
+        {
+            big.Size -= 0.5f;
+            small.Size = big.Size * centsRatio;
+        }
+
+        using var paint = Fill(color);
+        var x = 40f - Width() / 2f;
+        c.DrawText(parts.Units, x, baseline, SKTextAlign.Left, big, paint);
+        x += big.MeasureText(parts.Units);
+        c.DrawText(parts.Cents, x, baseline, SKTextAlign.Left, small, paint);
+        x += small.MeasureText(parts.Cents);
+        if (parts.Currency.Length > 0) c.DrawText(parts.Currency, x + Gap(), baseline, SKTextAlign.Left, big, paint);
     }
 
     /// <summary>« /!\ TEXTE » à la place de la barre d'une jauge : triangle d'avertissement puis texte, centrés.</summary>
