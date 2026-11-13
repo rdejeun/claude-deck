@@ -133,6 +133,8 @@ static class Gallery
             ("12-empty", b.Session(null, now, 0)),
             ("13-five-hour", b.PlanWindow("SESSION", new(62.4, now.AddMinutes(135), now, "statusline"), now, false)),
             ("13b-session-credits", b.SessionWindow(new(100, now.AddMinutes(135), now, "statusline"), new ClaudeDeck.Core.Usage.UsageCredits(true, 50m, 12.40m, "EUR", now), now)),
+            ("13c-credits-autoreload", b.SessionWindow(new(100, now.AddMinutes(135), now, "statusline"), new ClaudeDeck.Core.Usage.UsageCredits(true, null, 12.40m, "EUR", now) { Balance = 23.50m, AutoReload = true }, now)),
+            ("13d-credits-no-reload", b.SessionWindow(new(100, now.AddMinutes(135), now, "statusline"), new ClaudeDeck.Core.Usage.UsageCredits(true, null, 12.40m, "EUR", now) { Balance = 23.50m, AutoReload = false }, now)),
             ("14-week-high", b.PlanWindow("SEMAINE", new(87, now.AddDays(2), now, "statusline"), now, true)),
             ("15-week-stale", b.PlanWindow("SEMAINE", new(41, now.AddDays(2), now.AddHours(-3), "statusline"), now, true)),
             ("16-plan-waiting", b.PlanWindow("SESSION", null, now, false)),

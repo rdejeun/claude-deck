@@ -68,6 +68,68 @@ public sealed class OAuthUsageClient
         }
     }
 
+    /// <summary>
+    /// Solde de crédits prépayés et recharge automatique : <c>GET /api/oauth/organizations/{org}/prepaid/credits</c>,
+    /// l'appel que fait Claude Code pour afficher « balance · auto-reload » dans /usage (non documenté).
+    /// </summary>
+    public async Task<(decimal? Balance, string? Currency, bool? AutoReload)?> FetchPrepaidAsync(DateTimeOffset now, CancellationToken ct)
+    {
+        var token = ReadAccessToken(now);
+        var org = ReadOrganizationUuid();
+        if (token is null || org is null) return null;
+
+        using var req = new HttpRequestMessage(HttpMethod.Get,
+            $"https://api.anthropic.com/api/oauth/organizations/{Uri.EscapeDataString(org)}/prepaid/credits");
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        req.Headers.TryAddWithoutValidation("anthropic-beta", "oauth-2025-04-20");
+        req.Headers.TryAddWithoutValidation("x-organization-uuid", org);
+        req.Headers.UserAgent.ParseAdd("claude-deck/0.5");
+        try
+        {
+            using var resp = await _http.SendAsync(req, ct).ConfigureAwait(false);
+            var body = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+            if (!resp.IsSuccessStatusCode)
+            {
+                Log.Debug($"OAuth prepaid/credits : HTTP {(int)resp.StatusCode}");
+                return null;
+            }
+            using var doc = JsonDocument.Parse(body);
+            Log.Debug($"OAuth prepaid/credits : {Summarize(doc.RootElement)}");
+            return PlanUsageStore.ParsePrepaid(doc.RootElement);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+        {
+            Log.Debug($"OAuth prepaid/credits : {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>Champs utiles seulement (pas de données de paiement dans le journal).</summary>
+    private static string Summarize(JsonElement e) =>
+        $"amount={e.Num("amount")?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "?"} currency={e.Str("currency") ?? "?"} " +
+        $"auto_reload={e.Obj("auto_reload_settings")?.Bool("enabled")?.ToString() ?? "?"}";
+
+    /// <summary>Organisation claude.ai du compte connecté : <c>oauthAccount.organizationUuid</c> dans ~/.claude.json.</summary>
+    private static string? ReadOrganizationUuid()
+    {
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var configDir = Install.ClaudePaths.ConfigDir();
+        foreach (var path in new[] { Path.Combine(configDir, ".claude.json"), Path.Combine(home, ".claude.json") })
+        {
+            try
+            {
+                if (!File.Exists(path)) continue;
+                using var doc = JsonDocument.Parse(File.ReadAllText(path), JsonExt.Lenient);
+                if (doc.RootElement.Obj("oauthAccount")?.Str("organizationUuid") is { Length: > 0 } org) return org;
+            }
+            catch (Exception ex)
+            {
+                Log.Debug($"Lecture de {path} : {ex.Message}");
+            }
+        }
+        return null;
+    }
+
     private string? ReadAccessToken(DateTimeOffset now)
     {
         try

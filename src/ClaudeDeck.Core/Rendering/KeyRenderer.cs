@@ -115,6 +115,13 @@ public sealed class KeyRenderer : IDisposable
         if (v.Title is { } t) DrawText(c, t, _semi, 10.5f, 8f, 3f, 77f, 14f, v.Muted, SKTextAlign.Center);
         if (v.Main is { } m) DrawText(c, m, _bold, 22f, 13f, 3f, 77f, 41f, v.Foreground, SKTextAlign.Center);
 
+        if (v.BarText is { } warning)
+        {
+            DrawWarning(c, warning, v.BarTextColor);
+            if (v.Sub is { } s) DrawText(c, s, _semi, 11f, 8f, 3f, 77f, 72f, v.Muted, SKTextAlign.Center);
+            return;
+        }
+
         var bar = (float)Math.Clamp(v.Bar ?? 0, 0, 1);
         var rect = new SKRect(8, 49, 72, 56);
         using (var track = Fill(Rgb.Hex(0x2A2D35))) c.DrawRoundRect(rect, 3.5f, 3.5f, track);
@@ -182,6 +189,33 @@ public sealed class KeyRenderer : IDisposable
         {
             handle.Free();
         }
+    }
+
+    /// <summary>« /!\ TEXTE » à la place de la barre d'une jauge : triangle d'avertissement puis texte, centrés.</summary>
+    private void DrawWarning(SKCanvas c, string text, Rgb color)
+    {
+        using var font = new SKFont(_bold, 9.5f) { Subpixel = true, Edging = SKFontEdging.Antialias };
+        const float tri = 9f, gap = 3f, maxWidth = 74f;
+        while (font.Size > 7f && tri + gap + font.MeasureText(text) > maxWidth) font.Size -= 0.5f;
+        var total = tri + gap + font.MeasureText(text);
+        var x = 40f - total / 2f;
+        const float baseline = 56f;
+
+        using var p = Fill(color);
+        using (var path = new SKPath())
+        {
+            path.MoveTo(x + tri / 2f, baseline - 8.5f);
+            path.LineTo(x + tri, baseline);
+            path.LineTo(x, baseline);
+            path.Close();
+            c.DrawPath(path, p);
+        }
+        using (var ink = Fill(Rgb.Hex(0x111318)))
+        {
+            c.DrawRect(x + tri / 2f - 0.6f, baseline - 6f, 1.2f, 3.3f, ink);
+            c.DrawRect(x + tri / 2f - 0.6f, baseline - 1.9f, 1.2f, 1.2f, ink);
+        }
+        c.DrawText(text, x + tri + gap, baseline, SKTextAlign.Left, font, p);
     }
 
     // ───────────── Icônes vectorielles ─────────────

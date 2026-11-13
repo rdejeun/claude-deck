@@ -56,6 +56,10 @@ public sealed record KeyView
     public double? Bar { get; init; }
     public Rgb BarColor { get; init; } = Rgb.Hex(0x22C55E);
 
+    /// <summary>Avertissement affiché à la place de la barre (ex. « RECHARGE AUTO »), précédé d'un triangle.</summary>
+    public string? BarText { get; init; }
+    public Rgb BarTextColor { get; init; } = Rgb.Hex(0xF59E0B);
+
     /// <summary>Pastille en haut à droite (ex. « +2 » sessions masquées).</summary>
     public string? Badge { get; init; }
     public Rgb BadgeColor { get; init; } = Rgb.Hex(0x6B7280);

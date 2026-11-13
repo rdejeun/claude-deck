@@ -16,6 +16,12 @@ public sealed record RateWindow(double UsedPercent, DateTimeOffset? ResetsAt, Da
 /// </summary>
 public sealed record UsageCredits(bool Enabled, decimal? MonthlyLimit, decimal? Used, string Currency, DateTimeOffset ObservedAt)
 {
+    /// <summary>Solde de crédits prépayés (endpoint prepaid/credits), ou null si inconnu.</summary>
+    public decimal? Balance { get; init; }
+
+    /// <summary>Recharge automatique des crédits activée, ou null si inconnu.</summary>
+    public bool? AutoReload { get; init; }
+
     /// <summary>Reste disponible jusqu'au plafond mensuel, ou null sans plafond.</summary>
     public decimal? Remaining => MonthlyLimit is { } l && Used is { } u ? Math.Max(0, l - u) : null;
 
@@ -102,6 +108,17 @@ public sealed class PlanUsageStore
         lock (_gate) _credits = credits;
         Persist();
         Changed?.Invoke();
+    }
+
+    /// <summary>
+    /// Réponse de <c>GET /api/oauth/organizations/{org}/prepaid/credits</c> : <c>amount</c> (solde, unités mineures),
+    /// <c>currency</c>, <c>auto_reload_settings.enabled</c>.
+    /// </summary>
+    public static (decimal? Balance, string? Currency, bool? AutoReload) ParsePrepaid(JsonElement payload)
+    {
+        decimal? balance = payload.Num("amount") is { } a ? (decimal)a / 100m : null;
+        var reload = payload.Obj("auto_reload_settings")?.Bool("enabled");
+        return (balance, payload.Str("currency")?.Trim().ToUpperInvariant(), reload);
     }
 
     /// <summary>

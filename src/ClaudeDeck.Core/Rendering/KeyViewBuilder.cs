@@ -223,27 +223,30 @@ public sealed class KeyViewBuilder
         if (w is null || w.HasReset(now) || w.UsedPercent < 100 || credits is not { Enabled: true } c) return plain;
 
         var stale = now - c.ObservedAt > StaleAfter;
-        var pct = c.UsedPercent;
-        string main;
-        string? sub;
-        if (c.Remaining is { } remaining)
+        // Solde : crédits prépayés si connus, sinon reste jusqu'au plafond mensuel, sinon dépense du mois.
+        var amount = c.Balance ?? c.Remaining ?? c.Used ?? 0;
+        var view = plain with
         {
-            main = Money(remaining, c.Currency);
-            sub = plain.Sub; // « → 18:43 » : retour au forfait
-        }
-        else
-        {
-            // Pas de plafond mensuel : le solde n'a pas de sens, on montre la dépense du mois.
-            main = Money(c.Used ?? 0, c.Currency);
-            sub = "crédits illimités";
-        }
-        return plain with
-        {
-            Main = (stale ? "~" : "") + main,
-            Bar = pct is { } p ? Math.Clamp(p / 100.0, 0, 1) : 1,
-            BarColor = stale ? C.StaleBar : pct is null ? C.Blue : pct >= 95 ? C.Red : pct >= 90 ? C.Orange : C.Blue,
-            Sub = sub,
+            Main = (stale ? "~" : "") + Money(amount, c.Currency),
+            Sub = plain.Sub, // « → 18:43 » : retour au forfait
         };
+
+        if (c.MonthlyLimit is not null)
+        {
+            // Plafond mensuel fixé : la jauge montre la part du plafond dépensée.
+            var pct = c.UsedPercent ?? 0;
+            return view with
+            {
+                Bar = Math.Clamp(pct / 100.0, 0, 1),
+                BarColor = stale ? C.StaleBar : pct >= 95 ? C.Red : pct >= 90 ? C.Orange : C.Blue,
+            };
+        }
+
+        // Pas de plafond : avec la recharge automatique, avertissement à la place de la jauge ;
+        // sans, jauge pleine en rouge jusqu'à la réinitialisation de la session.
+        return c.AutoReload == true
+            ? view with { Bar = 0, BarText = "RECHARGE AUTO", BarTextColor = C.Amber, BarColor = C.Amber }
+            : view with { Bar = 1, BarColor = stale ? C.StaleBar : C.Red };
     }
 
     /// <summary>Montant dans une devise : « 37,60 € », « 37,60 $ », « 12,00 CHF ».</summary>

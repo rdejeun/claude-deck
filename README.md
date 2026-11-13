@@ -38,9 +38,11 @@ ou Windows Terminal) et acquitte l'état « terminé ».
 1. **Session** (fenêtre de 5 h) du forfait Pro/Max : % consommé et heure de réinitialisation.
    Couleur de la jauge : bleu jusqu'à 90 %, orange jusqu'à 95 %, rouge au-delà.
    Session épuisée (100 %) avec les **crédits d'utilisation** activés : la tuile affiche le **solde de crédits**
-   (reste jusqu'au plafond mensuel, dans la devise du compte) au lieu de 100 %. Pendant ce temps, ClaudeDeck interroge
-   la source OAuth chaque minute, ce qui fait aussi apparaître rapidement une réinitialisation (y compris « Réinitialiser
-   gratuitement » sur claude.ai). Un appui sur la tuile force la mise à jour.
+   prépayés (dans la devise du compte) au lieu de 100 %. La jauge montre la part du plafond de dépense mensuel ; sans
+   plafond, elle est remplacée par « ⚠ RECHARGE AUTO » si la recharge automatique est activée, sinon elle reste pleine
+   en rouge jusqu'à la réinitialisation de la session. Pendant ce temps, ClaudeDeck interroge la source OAuth chaque
+   minute, ce qui fait aussi apparaître rapidement une réinitialisation (y compris « Réinitialiser gratuitement » sur
+   claude.ai). Un appui sur la tuile force la mise à jour.
 2. **Semaine** : % consommé et jour + heure de réinitialisation.
 3. **Logo** (par défaut) : le logo de Claude (`assets/logo/default-logo.png`, marque d'Anthropic, non couvert par la
    licence MIT), ou votre propre image (réglage « Image du logo », PNG/JPG redimensionné automatiquement).

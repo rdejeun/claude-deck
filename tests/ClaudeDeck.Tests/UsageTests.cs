@@ -185,10 +185,26 @@ public class UsageCreditsTests
         Assert.Equal("100 %", N(b.SessionWindow(full, credits with { Enabled = false }, Now).Main)); // crédits désactivés
         Assert.Equal("100 %", N(b.SessionWindow(full, null, Now).Main));                            // inconnu
         Assert.Equal("62 %", N(b.SessionWindow(full with { UsedPercent = 62 }, credits, Now).Main)); // forfait non épuisé
-        var unlimited = b.SessionWindow(full, credits with { MonthlyLimit = null }, Now);
-        Assert.Equal("12,40 €", N(unlimited.Main));
-        Assert.Equal("crédits illimités", unlimited.Sub);
         Assert.Equal("SESSION", b.SessionWindow(full, credits, Now).Title);
+
+        // Solde prépayé connu : c'est lui qui est affiché.
+        Assert.Equal("23,50 €", N(b.SessionWindow(full, credits with { Balance = 23.50m }, Now).Main));
+
+        // Sans plafond, recharge automatique activée : avertissement à la place de la jauge.
+        var reload = b.SessionWindow(full, credits with { MonthlyLimit = null, Balance = 23.50m, AutoReload = true }, Now);
+        Assert.Equal("23,50 €", N(reload.Main));
+        Assert.Equal("RECHARGE AUTO", reload.BarText);
+        Assert.StartsWith("→ ", reload.Sub);
+
+        // Sans plafond ni recharge automatique : jauge pleine, rouge.
+        var noReload = b.SessionWindow(full, credits with { MonthlyLimit = null, Balance = 23.50m, AutoReload = false }, Now);
+        Assert.Null(noReload.BarText);
+        Assert.Equal(1.0, noReload.Bar);
+        Assert.Equal(Rgb.Hex(0xEF4444), noReload.BarColor);
+        Assert.Null(b.SessionWindow(full, credits with { MonthlyLimit = null }, Now).BarText); // recharge inconnue
+
+        using var r = new KeyRenderer();
+        Assert.Equal(80 * 80 * 4, r.Render(reload).Rgba.Length);
     }
 
     [Fact]
@@ -206,6 +222,21 @@ public class UsageCreditsTests
         // Réponse suivante de Claude : nouvelle fenêtre, acceptée.
         store.Update(new RateWindow(3, Now.AddHours(5), Now.AddMinutes(3), "statusline"), null);
         Assert.Equal(3, store.Snapshot().FiveHour!.UsedPercent);
+    }
+
+    [Fact]
+    public void Parses_prepaid_credits_response()
+    {
+        var (balance, currency, reload) = PlanUsageStore.ParsePrepaid(J.E(new
+        {
+            amount = 2350, currency = "eur", auto_reload_settings = new { enabled = true, threshold_cents = 500 }, expiry_policy_months = 12,
+        }));
+        Assert.Equal(23.50m, balance);
+        Assert.Equal("EUR", currency);
+        Assert.True(reload);
+        var empty = PlanUsageStore.ParsePrepaid(J.E(new { currency = "USD" }));
+        Assert.Null(empty.Balance);
+        Assert.Null(empty.AutoReload);
     }
 
     [Fact]

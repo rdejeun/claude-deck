@@ -178,7 +178,29 @@ public sealed class UsageService : IDisposable
                         if (r is { } v)
                         {
                             _plan.Update(v.FiveHour, v.SevenDay);
-                            _plan.UpdateCredits(v.Credits);
+                            var credits = v.Credits;
+                            var sessionFull = v.FiveHour is { } fh ? fh.UsedPercent >= 100 : exhausted;
+                            if (credits is { Enabled: true } && (sessionFull || plan.Credits?.Balance is null))
+                            {
+                                if (await _oauth.FetchPrepaidAsync(now, ct).ConfigureAwait(false) is { } prepaid)
+                                {
+                                    credits = credits with
+                                    {
+                                        Balance = prepaid.Balance,
+                                        AutoReload = prepaid.AutoReload,
+                                        Currency = prepaid.Currency ?? credits.Currency,
+                                    };
+                                }
+                                else if (plan.Credits is { } previous)
+                                {
+                                    credits = credits with { Balance = previous.Balance, AutoReload = previous.AutoReload };
+                                }
+                            }
+                            else if (credits is { Enabled: true } && plan.Credits is { } kept)
+                            {
+                                credits = credits with { Balance = kept.Balance, AutoReload = kept.AutoReload };
+                            }
+                            _plan.UpdateCredits(credits);
                         }
                         else
                         {
