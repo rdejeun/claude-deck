@@ -455,13 +455,26 @@ public class RealWorldSequenceTests
         tasks.Select((x, i) => new { id = $"task-{i}", type = x.Type, status = x.Status }).ToArray();
 
     [Fact]
+    public void Compaction_of_an_idle_session_is_hidden()
+    {
+        // 23:52:16 : PreCompact d'une session au repos, puis fin par l'agent interne.
+        var t = new SessionTracker(new FakeTime());
+        t.HandleHook(J.Hook("c", "SessionStart", new { source = "resume" }));
+        t.HandleHook(J.Hook("c", "PreCompact", new { trigger = "auto" }));
+        Assert.Equal(SessionState.Idle, t.Snapshot()[0].State);
+        t.HandleHook(J.Hook("c", "SubagentStop", new { agent_id = "a3dd13ccc07ea5c39", agent_type = "", background_tasks = Bg() }));
+        Assert.Equal(SessionState.Idle, t.Snapshot()[0].State);
+    }
+
+    [Fact]
     public void Compaction_ends_with_internal_agent_stop_without_postcompact()
     {
         var t = new SessionTracker(new FakeTime());
+        t.HandleHook(J.Hook("c", "UserPromptSubmit"));
         t.HandleHook(J.Hook("c", "PreCompact"));
         Assert.Equal(SessionState.Compacting, t.Snapshot()[0].State);
         t.HandleHook(J.Hook("c", "SubagentStop", new { agent_id = "aa3743de1e311e8d4", agent_type = "", background_tasks = Bg() }));
-        Assert.Equal(SessionState.Idle, t.Snapshot()[0].State);
+        Assert.Equal(SessionState.Working, t.Snapshot()[0].State); // tour en cours : retour au travail
     }
 
     [Fact]

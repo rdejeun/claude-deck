@@ -277,6 +277,8 @@ public sealed class SessionTracker
             }
 
             case "PreCompact":
+                // Compaction d'une session au repos (souvent automatique) : rien à signaler, la tuile reste « > ».
+                if (s.State == SessionState.Idle) break;
                 if (s.State != SessionState.Compacting) s.StateBeforeCompact = s.State;
                 SetState(s, SessionState.Compacting, now);
                 break;
