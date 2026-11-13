@@ -152,7 +152,7 @@ static class Gallery
         // Animation « travaille » : une image toutes les 50 ms sur un cycle complet.
         var gearDir = Path.Combine(dir, "gear");
         Directory.CreateDirectory(gearDir);
-        for (var t = 0; t < 2000; t += 125)
+        for (var t = 0; t < 8000; t += 125)
             File.WriteAllBytes(Path.Combine(gearDir, $"gear-{t:0000}.png"),
                 ClaudeDeck.Core.Rendering.KeyRenderer.ToPng(r.Render(b.Session(S(ClaudeDeck.Core.Model.SessionState.BackgroundTask), now, t))));
 

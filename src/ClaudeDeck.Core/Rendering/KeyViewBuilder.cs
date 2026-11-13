@@ -78,11 +78,11 @@ public sealed class KeyViewBuilder
                 },
                 SessionState.BackgroundTask => new KeyView
                 {
-                    // Mêmes couleurs que le travail ; roue crantée lente (un tour en 8 s, par pas de 1/48) ; « Shell ».
+                    // Mêmes couleurs que le travail ; roue crantée lente (un tour en 8 s, par pas bien visibles de 1/24) ; « Shell ».
                     Background = C.WorkBg, Foreground = C.WorkFg, Accent = C.WorkAccent, Muted = C.WorkMuted,
                     Title = title,
                     Icon = KeyIcon.Gear,
-                    SpinnerPhase = Math.Floor((animMs + phaseOffsetMs) % 8000 / 8000.0 * 48) / 48,
+                    SpinnerPhase = Math.Floor((animMs + phaseOffsetMs) % 8000 / 8000.0 * 24) / 24,
                     Main = "Shell", MainRegular = true,
                     Sub = s.TurnStartedAt is { } bt ? Chrono(now - bt) : null,
                     SubMono = true,
