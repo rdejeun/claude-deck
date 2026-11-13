@@ -150,5 +150,10 @@ public class HookLogTests
             hook_event_name = "SubagentStop", session_id = "s1", agent_id = "a1", agent_type = "",
         }));
         Assert.Equal("hook SubagentStop s1 agent=a1 agent_type=(interne) background=(absent)", sub);
+        var compact = ClaudeDeck.Core.Server.DeckApi.DescribeHook(System.Text.Json.JsonSerializer.SerializeToElement(new
+        {
+            hook_event_name = "PreCompact", session_id = "s1", trigger = "auto",
+        }));
+        Assert.Equal("hook PreCompact s1 trigger=auto", compact);
     }
 }

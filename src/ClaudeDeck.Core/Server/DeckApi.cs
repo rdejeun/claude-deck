@@ -124,6 +124,9 @@ public sealed class DeckApi
         sb.Append(p.Str("hook_event_name")).Append(' ').Append(p.Str("session_id"));
         if (p.Str("tool_name") is { } tool) sb.Append(" tool=").Append(tool);
         if (p.Str("notification_type") is { } nt) sb.Append(" type=").Append(nt);
+        if (p.Str("trigger") is { } trigger) sb.Append(" trigger=").Append(trigger);   // PreCompact : manual / auto
+        if (p.Str("source") is { } source) sb.Append(" source=").Append(source);       // SessionStart : startup, resume, compact…
+        if (p.Str("reason") is { } reason) sb.Append(" reason=").Append(reason);       // SessionEnd
         if (p.Str("agent_id") is { } agent) sb.Append(" agent=").Append(agent);
         if (p.Str("agent_type") is { } at) sb.Append(" agent_type=").Append(at.Length == 0 ? "(interne)" : at);
         if (p.TryGetProperty("background_tasks", out var tasks) && tasks.ValueKind == JsonValueKind.Array)
