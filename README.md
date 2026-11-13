@@ -26,6 +26,7 @@ Une session garde sa touche tant qu'elle reste affichée ; la pastille « +N » 
 | Au repos | gris, invite « > », modèle et remplissage du contexte (« ≈ » si estimé) | `SessionStart`, Échap (`Notification` idle) |
 | Travaille | orange très sombre, astérisque animé (2 s, déphasé d'une touche à l'autre), modèle (« Opus 5.5 ») et chrono du tour (`mm:ss` ou `h:mm:ss`, chiffres à largeur fixe) | `UserPromptSubmit`, `PreToolUse`, `PostToolUse` |
 | **Autoriser / Question** | **bleu**, clignotant pendant 10 s puis fixe, icône seule (triangle ou « ? ») ; en bas, l'outil concerné ou le titre de la question (`header` d'AskUserQuestion) | `PermissionRequest`, `Notification` (permission, elicitation), `AskUserQuestion` |
+| Tâche de fond | couleurs du travail, roue crantée lente, « Shell », chrono qui continue : Claude a fini, une commande lancée en arrière-plan tourne encore | `Stop` avec une tâche `shell` dans `background_tasks` |
 | Terminé | vert, coche seule, « il y a 3 min » | `Stop` |
 | Compaction | violet | `PreCompact` → `PostCompact` |
 | Erreur API | rouge | `StopFailure` |

@@ -97,7 +97,7 @@ public sealed class SessionTracker
         {
             if (eventName is "Stop" or "StopFailure") return; // ne concerne pas l'agent principal
             s.RunningAgentIds.Add(agentId);
-            if (s.State is SessionState.Done or SessionState.Idle)
+            if (s.State is SessionState.Done or SessionState.Idle or SessionState.BackgroundTask)
             {
                 // Le tour principal était fini : la session repasse « au travail », chrono du tour repris.
                 s.AwaitingBackgroundAgents = true;
@@ -215,9 +215,11 @@ public sealed class SessionTracker
                 // et le chrono continue, jusqu'à ce que ces agents soient terminés.
                 // Deux signaux, l'un ou l'autre suffit : la liste « background_tasks » (absente de certaines versions),
                 // et les sous-agents démarrés (SubagentStart) dont on n'a pas encore reçu le SubagentStop.
+                // Sans agent restant mais avec une commande shell de fond : état « tâche de fond », chrono conservé.
                 s.CurrentTool = null;
                 var background = CountBackgroundAgents(p);
                 s.BackgroundAgents = background ?? 0;
+                s.BackgroundShells = CountBackgroundShells(p) ?? 0;
                 if (background > 0 || s.RunningAgentIds.Count > 0)
                 {
                     s.AwaitingBackgroundAgents = true;
@@ -226,8 +228,7 @@ public sealed class SessionTracker
                 else
                 {
                     s.AwaitingBackgroundAgents = false;
-                    EndTurn(s, now);
-                    SetState(s, SessionState.Done, now);
+                    FinishOrWaitForShells(s, now);
                 }
                 break;
             }
@@ -261,12 +262,16 @@ public sealed class SessionTracker
                 var isRealSubagent = !string.IsNullOrEmpty(stoppedId) && !string.IsNullOrEmpty(p.Str("agent_type"));
                 if (CountBackgroundAgents(p, excludeStoppingAgent: isRealSubagent ? stoppedId : null) is { } background)
                     s.BackgroundAgents = background;
+                if (CountBackgroundShells(p) is { } shells) s.BackgroundShells = shells;
                 else if (s.RunningAgentIds.Count == 0) s.BackgroundAgents = 0;
                 if (s.AwaitingBackgroundAgents && s.BackgroundAgents == 0 && s.RunningAgentIds.Count == 0)
                 {
                     s.AwaitingBackgroundAgents = false;
-                    EndTurn(s, now);
-                    SetState(s, SessionState.Done, now);
+                    FinishOrWaitForShells(s, now);
+                }
+                else if (s.State == SessionState.BackgroundTask && s.BackgroundShells == 0)
+                {
+                    FinishOrWaitForShells(s, now);
                 }
                 break;
             }
@@ -283,10 +288,34 @@ public sealed class SessionTracker
     }
 
     /// <summary>Fin de compaction : au travail si un tour est en cours, sinon l'état d'avant (terminé, erreur) ou au repos.</summary>
+    /// <summary>Fin du travail de Claude : « tâche de fond » si une commande shell tourne encore, sinon « Terminé ».</summary>
+    private static void FinishOrWaitForShells(Session s, DateTimeOffset now)
+    {
+        if (s.BackgroundShells > 0)
+        {
+            s.CurrentTool = null;
+            s.TurnStartedAt ??= s.LastTurnStartedAt ?? now; // le chrono continue
+            SetState(s, SessionState.BackgroundTask, now);
+            return;
+        }
+        EndTurn(s, now);
+        SetState(s, SessionState.Done, now);
+    }
+
+    /// <summary>Commandes shell d'arrière-plan en cours d'après « background_tasks », ou null si la liste est absente.</summary>
+    internal static int? CountBackgroundShells(JsonElement p)
+    {
+        if (!p.TryGetProperty("background_tasks", out var tasks) || tasks.ValueKind != JsonValueKind.Array) return null;
+        return tasks.EnumerateArray().Count(t =>
+            t.Str("type") is "shell" or "local_bash" &&
+            t.Str("status") is not ("completed" or "failed" or "killed" or "cancelled"));
+    }
+
     private static void EndCompaction(Session s, DateTimeOffset now)
     {
         if (s.State != SessionState.Compacting) return;
-        var next = s.TurnStartedAt is not null || s.AwaitingBackgroundAgents ? SessionState.Working
+        var next = s.StateBeforeCompact == SessionState.BackgroundTask ? SessionState.BackgroundTask
+            : s.TurnStartedAt is not null || s.AwaitingBackgroundAgents ? SessionState.Working
             : s.StateBeforeCompact is SessionState.Done or SessionState.Error ? s.StateBeforeCompact
             : SessionState.Idle;
         SetState(s, next, now);

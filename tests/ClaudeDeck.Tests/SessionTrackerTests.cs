@@ -140,10 +140,10 @@ public class SessionTrackerTests
         t.HandleHook(J.Hook("a", "SubagentStop", new { agent_type = "", background_tasks = Bg(("subagent", "running")) }));
         Assert.Equal(SessionState.Working, Only(t).State);
 
-        // Fin de l'agent d'arrière-plan : il ne reste qu'un shell (serveur…), la session est terminée.
+        // Fin de l'agent d'arrière-plan : il ne reste qu'une commande shell → tâche de fond, chrono conservé.
         t.HandleHook(J.Hook("a", "SubagentStop", new { agent_id = "bg1", background_tasks = Bg(("shell", "running")) }));
-        Assert.Equal(SessionState.Done, Only(t).State);
-        Assert.Null(Only(t).TurnStartedAt);
+        Assert.Equal(SessionState.BackgroundTask, Only(t).State);
+        Assert.Equal(turnStart, Only(t).TurnStartedAt);
     }
 
     [Fact]
@@ -160,11 +160,21 @@ public class SessionTrackerTests
     }
 
     [Fact]
-    public void Shell_only_background_tasks_and_old_versions_end_the_turn()
+    public void Background_shell_gives_background_task_state_monitor_alone_does_not()
     {
         var t = NewTracker();
         t.HandleHook(J.Hook("a", "UserPromptSubmit"));
+        var start = Only(t).TurnStartedAt;
         t.HandleHook(J.Hook("a", "Stop", new { background_tasks = Bg(("shell", "running"), ("monitor", "running")) }));
+        Assert.Equal(SessionState.BackgroundTask, Only(t).State);
+        Assert.Equal(start, Only(t).TurnStartedAt);
+        // Rappel « idle_prompt » : la commande tourne toujours, on ne change rien.
+        t.HandleHook(J.Hook("a", "Notification", new { notification_type = "idle_prompt" }));
+        Assert.Equal(SessionState.BackgroundTask, Only(t).State);
+        // Claude est réveillé par la fin de la commande, puis finit son tour sans tâche restante.
+        t.HandleHook(J.Hook("a", "UserPromptSubmit"));
+        Assert.Equal(SessionState.Working, Only(t).State);
+        t.HandleHook(J.Hook("a", "Stop", new { background_tasks = Bg(("monitor", "running")) }));
         Assert.Equal(SessionState.Done, Only(t).State);
         t.HandleHook(J.Hook("b", "UserPromptSubmit"));
         t.HandleHook(J.Hook("b", "Stop")); // pas de background_tasks (ancienne version)
@@ -477,7 +487,7 @@ public class RealWorldSequenceTests
         // 23:01:33 → 23:01:47 : sous-agent relancé après la fin du tour principal, puis SubagentStop qui le liste encore.
         var t = new SessionTracker(new FakeTime());
         t.HandleHook(J.Hook("f", "UserPromptSubmit"));
-        t.HandleHook(J.Hook("f", "Stop", new { background_tasks = Bg(("shell", "running"), ("shell", "running")) }));
+        t.HandleHook(J.Hook("f", "Stop", new { background_tasks = Bg(("monitor", "running")) }));
         Assert.Equal(SessionState.Done, t.Snapshot()[0].State);
         t.HandleHook(J.Hook("f", "SubagentStart", new { agent_id = "aa9772ed2572a84dc", agent_type = "general-purpose" }));
         t.HandleHook(J.Hook("f", "PreToolUse", new { tool_name = "Bash", agent_id = "aa9772ed2572a84dc", agent_type = "general-purpose" }));
@@ -485,8 +495,26 @@ public class RealWorldSequenceTests
         t.HandleHook(J.Hook("f", "SubagentStop", new
         {
             agent_id = "aa9772ed2572a84dc", agent_type = "general-purpose",
-            background_tasks = Bg(("subagent", "running"), ("shell", "running")),
+            background_tasks = Bg(("subagent", "running"), ("monitor", "running")),
         }));
+        Assert.Equal(SessionState.Done, t.Snapshot()[0].State);
+    }
+
+    [Fact]
+    public void Stop_with_background_shell_from_user_log_shows_background_task()
+    {
+        // 23:21:14 : « Stop f3c96d67 background=[shell:running] » → tâche de fond, pas « Terminé ».
+        var t = new SessionTracker(new FakeTime());
+        t.HandleHook(J.Hook("f", "UserPromptSubmit"));
+        t.HandleHook(J.Hook("f", "Stop", new { background_tasks = Bg(("shell", "running")) }));
+        Assert.Equal(SessionState.BackgroundTask, t.Snapshot()[0].State);
+        // Un sous-agent se manifeste : retour au travail.
+        t.HandleHook(J.Hook("f", "PreToolUse", new { tool_name = "Bash", agent_id = "x1", agent_type = "general-purpose" }));
+        Assert.Equal(SessionState.Working, t.Snapshot()[0].State);
+        // Il s'arrête ; la commande shell tourne encore → tâche de fond ; plus de shell → terminé.
+        t.HandleHook(J.Hook("f", "SubagentStop", new { agent_id = "x1", agent_type = "general-purpose", background_tasks = Bg(("subagent", "running"), ("shell", "running")) }));
+        Assert.Equal(SessionState.BackgroundTask, t.Snapshot()[0].State);
+        t.HandleHook(J.Hook("f", "SubagentStop", new { agent_type = "", background_tasks = Bg() }));
         Assert.Equal(SessionState.Done, t.Snapshot()[0].State);
     }
 

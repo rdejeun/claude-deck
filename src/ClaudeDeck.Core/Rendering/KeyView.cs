@@ -21,6 +21,8 @@ public enum KeyIcon
     Prompt,
     /// <summary>Grand motif d'étoile rayonnante (touche logo).</summary>
     Spark,
+    /// <summary>Roue crantée, tournée selon <see cref="KeyView.SpinnerPhase"/> (tâche de fond).</summary>
+    Gear,
 }
 
 /// <summary>

@@ -76,6 +76,17 @@ public sealed class KeyViewBuilder
                     Sub = s.TurnStartedAt is { } t ? Chrono(now - t) : null,
                     SubMono = true,
                 },
+                SessionState.BackgroundTask => new KeyView
+                {
+                    // Mêmes couleurs que le travail ; roue crantée lente (un tour en 8 s, par pas de 1/48) ; « Shell ».
+                    Background = C.WorkBg, Foreground = C.WorkFg, Accent = C.WorkAccent, Muted = C.WorkMuted,
+                    Title = title,
+                    Icon = KeyIcon.Gear,
+                    SpinnerPhase = Math.Floor((animMs + phaseOffsetMs) % 8000 / 8000.0 * 48) / 48,
+                    Main = "Shell", MainRegular = true,
+                    Sub = s.TurnStartedAt is { } bt ? Chrono(now - bt) : null,
+                    SubMono = true,
+                },
                 SessionState.Waiting => new KeyView
                 {
                     Background = blinkOn ? C.WaitOnBg : C.WaitOffBg,

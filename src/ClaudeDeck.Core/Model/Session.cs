@@ -14,6 +14,8 @@ public enum SessionState
     Compacting,
     /// <summary>Le tour s'est terminé sur une erreur API (StopFailure).</summary>
     Error,
+    /// <summary>Tour de Claude terminé, mais une commande lancée en arrière-plan (shell) tourne encore.</summary>
+    BackgroundTask,
 }
 
 public enum WaitReason
@@ -72,6 +74,9 @@ public sealed class Session
 
     /// <summary>L'agent principal a fini son tour (Stop) mais des agents travaillent encore en arrière-plan.</summary>
     public bool AwaitingBackgroundAgents { get; set; }
+
+    /// <summary>Commandes shell d'arrière-plan en cours d'après la dernière liste « background_tasks ».</summary>
+    public int BackgroundShells { get; set; }
 
     public int ActiveSubagents => Math.Max(RunningAgentIds.Count, BackgroundAgents);
     public double? ContextUsedPercent { get; set; }

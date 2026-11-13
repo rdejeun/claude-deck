@@ -130,6 +130,7 @@ static class Gallery
             ("09-compacting", b.Session(S(ClaudeDeck.Core.Model.SessionState.Compacting), now, 0)),
             ("10-error", b.Session(S(ClaudeDeck.Core.Model.SessionState.Error), now, 0)),
             ("11-hidden-waiting", b.Session(S(ClaudeDeck.Core.Model.SessionState.Working, "Edit"), now, 0, 2, 1)),
+            ("11b-background-shell", b.Session(S(ClaudeDeck.Core.Model.SessionState.BackgroundTask), now, 0)),
             ("12-empty", b.Session(null, now, 0)),
             ("13-five-hour", b.PlanWindow("SESSION", new(62.4, now.AddMinutes(135), now, "statusline"), now, false)),
             ("13b-session-credits", b.SessionWindow(new(100, now.AddMinutes(135), now, "statusline"), new ClaudeDeck.Core.Usage.UsageCredits(true, 50m, 12.40m, "EUR", now), now)),
@@ -149,6 +150,12 @@ static class Gallery
             File.WriteAllBytes(Path.Combine(dir, name + ".png"), ClaudeDeck.Core.Rendering.KeyRenderer.ToPng(r.Render(view)));
 
         // Animation « travaille » : une image toutes les 50 ms sur un cycle complet.
+        var gearDir = Path.Combine(dir, "gear");
+        Directory.CreateDirectory(gearDir);
+        for (var t = 0; t < 2000; t += 125)
+            File.WriteAllBytes(Path.Combine(gearDir, $"gear-{t:0000}.png"),
+                ClaudeDeck.Core.Rendering.KeyRenderer.ToPng(r.Render(b.Session(S(ClaudeDeck.Core.Model.SessionState.BackgroundTask), now, t))));
+
         var anim = Path.Combine(dir, "anim");
         Directory.CreateDirectory(anim);
         var working = S(ClaudeDeck.Core.Model.SessionState.Working, "Bash");

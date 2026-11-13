@@ -164,7 +164,7 @@
 const TOKEN = "{{TOKEN}}";
 const H = { "X-ClaudeDeck-Token": TOKEN, "Content-Type": "application/json" };
 const $ = id => document.getElementById(id);
-const STATES = { Idle: "Au repos", Working: "Travaille", Waiting: "En attente", Done: "Terminé", Compacting: "Compaction", Error: "Erreur" };
+const STATES = { Idle: "Au repos", Working: "Travaille", Waiting: "En attente", Done: "Terminé", Compacting: "Compaction", Error: "Erreur", BackgroundTask: "Tâche de fond" };
 let version = -1, settingsLoaded = false;
 
 const deck = $("deck");

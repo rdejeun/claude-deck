@@ -22,6 +22,7 @@ public sealed class SlotAllocator
         SessionState.Error => 1,
         SessionState.Working => 2,
         SessionState.Compacting => 2,
+        SessionState.BackgroundTask => 2,
         SessionState.Done => 3,
         _ => 4,
     };

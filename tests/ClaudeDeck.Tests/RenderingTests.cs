@@ -470,3 +470,26 @@ public class MoneyTypographyTests
         Assert.NotEqual(r.Render(v).Hash, r.Render(v with { MainMoney = false }).Hash);
     }
 }
+
+
+public class BackgroundTaskViewTests
+{
+    [Fact]
+    public void Background_task_tile_shows_gear_shell_and_running_timer()
+    {
+        var now = new DateTimeOffset(2026, 11, 13, 23, 33, 0, TimeSpan.Zero);
+        var b = new KeyViewBuilder(TimeZoneInfo.Utc);
+        var s = new SessionSnapshot("id", "download-receipt", null, null, "Opus 5.5", SessionState.BackgroundTask, now.AddMinutes(-12),
+            WaitReason.None, null, null, now.AddMinutes(-14), null, 0, null, null, now, null);
+        var v = b.Session(s, now, 0);
+        Assert.Equal(KeyIcon.Gear, v.Icon);
+        Assert.Equal("Shell", v.Main);
+        Assert.True(v.MainRegular);
+        Assert.Equal("14:00", v.Sub);
+        var work = b.Session(s with { State = SessionState.Working }, now, 0);
+        Assert.Equal(work.Background, v.Background); // mêmes couleurs que le travail
+        Assert.NotEqual(v.SpinnerPhase, b.Session(s, now, 500).SpinnerPhase); // la roue tourne (1/16 de tour)
+        using var r = new KeyRenderer();
+        Assert.NotEqual(r.Render(v).Hash, r.Render(b.Session(s, now, 500)).Hash);
+    }
+}

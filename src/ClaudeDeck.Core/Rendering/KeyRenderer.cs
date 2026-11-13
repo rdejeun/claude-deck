@@ -351,6 +351,42 @@ public sealed class KeyRenderer : IDisposable
                 c.DrawLine(cx + d, cy - d, cx - d, cy + d, stroke);
                 break;
             }
+            case KeyIcon.Gear:
+            {
+                // Roue à 8 dents : couronne pleine, dents trapézoïdales, moyeu évidé ; rotation = phase.
+                using var gear = new SKPath();
+                const int teeth = 8;
+                var outer = r * 1.05f; var rim = r * 0.78f; var hole = r * 0.32f;
+                var rot = (float)(phase * 2 * Math.PI);
+                for (var i = 0; i < teeth; i++)
+                {
+                    var a = rot + i * 2 * MathF.PI / teeth;
+                    var half = MathF.PI / teeth;
+                    var pts = new[]
+                    {
+                        (rim, a - half * 0.62f), (outer, a - half * 0.38f), (outer, a + half * 0.38f), (rim, a + half * 0.62f),
+                    };
+                    for (var k = 0; k < pts.Length; k++)
+                    {
+                        var (rad, ang) = pts[k];
+                        var px = cx + rad * MathF.Cos(ang);
+                        var py = cy + rad * MathF.Sin(ang);
+                        if (i == 0 && k == 0) gear.MoveTo(px, py); else gear.LineTo(px, py);
+                    }
+                    // Arc de couronne jusqu'à la dent suivante.
+                    var next = a + 2 * half - half * 0.62f;
+                    for (var t = 1; t <= 4; t++)
+                    {
+                        var ang = a + half * 0.62f + (next - (a + half * 0.62f)) * t / 4f;
+                        gear.LineTo(cx + rim * MathF.Cos(ang), cy + rim * MathF.Sin(ang));
+                    }
+                }
+                gear.Close();
+                gear.AddCircle(cx, cy, hole, SKPathDirection.CounterClockwise);
+                gear.FillType = SKPathFillType.EvenOdd;
+                c.DrawPath(gear, fill);
+                break;
+            }
             case KeyIcon.Prompt:
             {
                 using var chevron = new SKPath();
