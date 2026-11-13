@@ -353,7 +353,7 @@ public sealed class KeyRenderer : IDisposable
             }
             case KeyIcon.Gear:
             {
-                // Roue à 8 dents : couronne pleine, dents trapézoïdales, moyeu évidé ; rotation = phase.
+                // Roue à 8 dents : contour de la couronne et des dents trapézoïdales, cercle du moyeu ; rotation = phase.
                 using var gear = new SKPath();
                 const int teeth = 8;
                 var outer = r * 1.05f; var rim = r * 0.78f; var hole = r * 0.32f;
@@ -384,7 +384,13 @@ public sealed class KeyRenderer : IDisposable
                 gear.Close();
                 gear.AddCircle(cx, cy, hole, SKPathDirection.CounterClockwise);
                 gear.FillType = SKPathFillType.EvenOdd;
-                c.DrawPath(gear, fill);
+                // Roue dessinée en lignes (trait de 1,8 px), pas en plein.
+                using var line = new SKPaint
+                {
+                    Color = ToSk(color), IsAntialias = true, Style = SKPaintStyle.Stroke,
+                    StrokeWidth = 1.8f, StrokeJoin = SKStrokeJoin.Round,
+                };
+                c.DrawPath(gear, line);
                 break;
             }
             case KeyIcon.Prompt:
