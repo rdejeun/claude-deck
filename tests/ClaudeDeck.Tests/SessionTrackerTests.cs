@@ -105,16 +105,80 @@ public class SessionTrackerTests
     }
 
     [Fact]
-    public void Subagent_counter_never_negative()
+    public void Internal_agent_stops_do_not_hide_running_agents()
     {
         var t = NewTracker();
-        t.HandleHook(J.Hook("a", "SubagentStart", new { agent_id = "x" }));
-        t.HandleHook(J.Hook("a", "SubagentStart", new { agent_id = "y" }));
+        t.HandleHook(J.Hook("a", "SubagentStart", new { agent_id = "x", agent_type = "Explore" }));
+        t.HandleHook(J.Hook("a", "SubagentStart", new { agent_id = "y", agent_type = "general-purpose" }));
         Assert.Equal(2, Only(t).ActiveSubagents);
-        t.HandleHook(J.Hook("a", "SubagentStop"));
-        t.HandleHook(J.Hook("a", "SubagentStop"));
-        t.HandleHook(J.Hook("a", "SubagentStop"));
+        // Agents internes de Claude Code (suggestions, /btw) : SubagentStop sans SubagentStart.
+        t.HandleHook(J.Hook("a", "SubagentStop", new { agent_id = "internal-1", agent_type = "" }));
+        t.HandleHook(J.Hook("a", "SubagentStop", new { agent_type = "" }));
+        Assert.Equal(2, Only(t).ActiveSubagents);
+        t.HandleHook(J.Hook("a", "SubagentStop", new { agent_id = "x" }));
+        t.HandleHook(J.Hook("a", "SubagentStop", new { agent_id = "y" }));
+        t.HandleHook(J.Hook("a", "SubagentStop", new { agent_id = "y" }));
         Assert.Equal(0, Only(t).ActiveSubagents);
+    }
+
+    private static object Bg(params (string Type, string Status)[] tasks) =>
+        tasks.Select((x, i) => new { id = $"task-{i}", type = x.Type, status = x.Status, description = "..." }).ToArray();
+
+    [Fact]
+    public void Stop_with_background_agent_keeps_working_until_it_finishes()
+    {
+        var t = NewTracker();
+        t.HandleHook(J.Hook("a", "UserPromptSubmit"));
+        var turnStart = Only(t).TurnStartedAt;
+        t.HandleHook(J.Hook("a", "SubagentStart", new { agent_id = "bg1", agent_type = "general-purpose" }));
+        t.HandleHook(J.Hook("a", "Stop", new { background_tasks = Bg(("subagent", "running"), ("shell", "running")) }));
+        Assert.Equal(SessionState.Working, Only(t).State);
+        Assert.Equal(1, Only(t).ActiveSubagents);
+        Assert.Equal(turnStart, Only(t).TurnStartedAt); // le chrono continue
+
+        // Fin d'un agent interne : rien ne change.
+        t.HandleHook(J.Hook("a", "SubagentStop", new { agent_type = "", background_tasks = Bg(("subagent", "running")) }));
+        Assert.Equal(SessionState.Working, Only(t).State);
+
+        // Fin de l'agent d'arrière-plan : il ne reste qu'un shell (serveur…), la session est terminée.
+        t.HandleHook(J.Hook("a", "SubagentStop", new { agent_id = "bg1", background_tasks = Bg(("shell", "running")) }));
+        Assert.Equal(SessionState.Done, Only(t).State);
+        Assert.Null(Only(t).TurnStartedAt);
+    }
+
+    [Fact]
+    public void Main_agent_woken_by_background_agent_ends_with_a_plain_stop()
+    {
+        var t = NewTracker();
+        t.HandleHook(J.Hook("a", "UserPromptSubmit"));
+        t.HandleHook(J.Hook("a", "Stop", new { background_tasks = Bg(("subagent", "running")) }));
+        Assert.Equal(SessionState.Working, Only(t).State);
+        t.HandleHook(J.Hook("a", "PreToolUse", new { tool_name = "Read" }));
+        t.HandleHook(J.Hook("a", "PostToolUse", new { tool_name = "Read" }));
+        t.HandleHook(J.Hook("a", "Stop", new { background_tasks = Array.Empty<object>() }));
+        Assert.Equal(SessionState.Done, Only(t).State);
+    }
+
+    [Fact]
+    public void Shell_only_background_tasks_and_old_versions_end_the_turn()
+    {
+        var t = NewTracker();
+        t.HandleHook(J.Hook("a", "UserPromptSubmit"));
+        t.HandleHook(J.Hook("a", "Stop", new { background_tasks = Bg(("shell", "running"), ("monitor", "running")) }));
+        Assert.Equal(SessionState.Done, Only(t).State);
+        t.HandleHook(J.Hook("b", "UserPromptSubmit"));
+        t.HandleHook(J.Hook("b", "Stop")); // pas de background_tasks (ancienne version)
+        Assert.Equal(SessionState.Done, t.Snapshot().Single(s => s.Id == "b").State);
+    }
+
+    [Fact]
+    public void Idle_prompt_while_awaiting_background_means_done()
+    {
+        var t = NewTracker();
+        t.HandleHook(J.Hook("a", "UserPromptSubmit"));
+        t.HandleHook(J.Hook("a", "Stop", new { background_tasks = Bg(("subagent", "running")) }));
+        t.HandleHook(J.Hook("a", "Notification", new { notification_type = "idle_prompt" }));
+        Assert.Equal(SessionState.Done, Only(t).State);
     }
 
     [Fact]

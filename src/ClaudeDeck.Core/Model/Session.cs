@@ -58,7 +58,16 @@ public sealed class Session
     /// <summary>Durée du dernier tour terminé.</summary>
     public TimeSpan? LastTurnDuration { get; set; }
 
-    public int ActiveSubagents { get; set; }
+    /// <summary>Sous-agents lancés (SubagentStart) et pas encore terminés, par agent_id.</summary>
+    public HashSet<string> RunningAgentIds { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>Agents encore en cours en arrière-plan d'après le dernier Stop / SubagentStop (« background_tasks »).</summary>
+    public int BackgroundAgents { get; set; }
+
+    /// <summary>L'agent principal a fini son tour (Stop) mais des agents travaillent encore en arrière-plan.</summary>
+    public bool AwaitingBackgroundAgents { get; set; }
+
+    public int ActiveSubagents => Math.Max(RunningAgentIds.Count, BackgroundAgents);
     public double? ContextUsedPercent { get; set; }
     /// <summary>Le % de contexte est estimé (taille de fenêtre supposée) et non fourni par la status line.</summary>
     public bool ContextEstimated { get; set; }

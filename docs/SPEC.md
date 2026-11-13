@@ -72,10 +72,10 @@ affiche la status line préexistante de l'utilisateur (exécutée via Git Bash, 
 | `Notification[elicitation_dialog \| elicitation_url_dialog \| agent_needs_input]` | → En attente (question) |
 | `PostToolUse`, `PostToolUseFailure`, `PermissionDenied` | → Travaille, plus d'outil courant |
 | `Notification[idle_prompt]` | si Travaille/Compaction → Au repos (tour interrompu par Échap, sans `Stop`) |
-| `Stop` | → Terminé (durée du tour mémorisée) |
+| `Stop` | → Terminé, **sauf** si `background_tasks` contient encore des agents (types `subagent`, `workflow`, `teammate`, `cloud session` ; les `shell`, `monitor`, `MCP task` sont ignorés) : la session reste « au travail », chrono compris, jusqu'au `SubagentStop` qui vide la liste, au `Stop` suivant ou au rappel `idle_prompt` |
 | `StopFailure` | → Erreur |
 | `PreCompact` / `PostCompact` | → Compaction / retour à Travaille ou Au repos |
-| `SubagentStart` / `SubagentStop` | compteur d'agents (≥ 0) |
+| `SubagentStart` / `SubagentStop` | ensemble des agents en cours par `agent_id` (un `SubagentStop` d'agent interne de Claude Code, sans `SubagentStart`, est ignoré) ; `background_tasks` de `SubagentStop` met à jour les agents d'arrière-plan |
 | `SessionStart.model`, `PostModelSwitch.to_model` | modèle affiché (« claude-opus-5-5 » → « Opus 5.5 ») ; aussi mis à jour par la status line (`model.display_name`) et par la lecture du transcript (`transcript_path`, dernière réponse de l'agent principal, après chaque événement et toutes les 15 s au travail) — seule source pour l'extension VS Code. Le transcript donne aussi le remplissage du contexte (jetons d'entrée + cache) ; la taille de fenêtre vient de la status line pour ce modèle si elle a été vue, sinon elle est supposée (200 000, ou 1 M au-delà) et le % est affiché « ≈ » |
 | `SessionEnd` | suppression |
 | appui sur la touche | Terminé/Erreur → Au repos |

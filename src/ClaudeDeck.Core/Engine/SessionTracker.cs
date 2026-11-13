@@ -98,13 +98,16 @@ public sealed class SessionTracker
                 s.Model = ModelName.Format(p.Str("model")) ?? s.Model;
                 SetState(s, SessionState.Idle, now);
                 s.CurrentTool = null;
-                s.ActiveSubagents = 0;
+                s.RunningAgentIds.Clear();
+                s.BackgroundAgents = 0;
+                s.AwaitingBackgroundAgents = false;
                 break;
 
             case "UserPromptSubmit":
                 SetState(s, SessionState.Working, now);
                 s.TurnStartedAt = now;
                 s.CurrentTool = null;
+                s.AwaitingBackgroundAgents = false;
                 break;
 
             case "PreToolUse":
@@ -166,7 +169,15 @@ public sealed class SessionTracker
                     case "idle_prompt":
                         // Claude attend une saisie : si l'on croyait qu'il travaillait, le tour a été
                         // interrompu (Échap) sans événement Stop.
-                        if (s.State is SessionState.Working or SessionState.Compacting)
+                        // Ce rappel n'est envoyé que lorsqu'aucun agent d'arrière-plan ne tourne plus.
+                        if (s.AwaitingBackgroundAgents)
+                        {
+                            s.AwaitingBackgroundAgents = false;
+                            s.BackgroundAgents = 0;
+                            EndTurn(s, now);
+                            SetState(s, SessionState.Done, now);
+                        }
+                        else if (s.State is SessionState.Working or SessionState.Compacting)
                         {
                             EndTurn(s, now);
                             SetState(s, SessionState.Idle, now);
@@ -176,9 +187,27 @@ public sealed class SessionTracker
                 break;
 
             case "Stop":
-                EndTurn(s, now);
-                SetState(s, SessionState.Done, now);
+            {
+                // « Stop » = l'agent principal a fini de répondre, pas forcément la fin du travail : des agents lancés
+                // en arrière-plan peuvent continuer (liste « background_tasks »). La session reste alors « au travail »
+                // et le chrono continue, jusqu'à ce que ces agents soient terminés.
+                s.CurrentTool = null;
+                var background = CountBackgroundAgents(p);
+                s.RunningAgentIds.Clear(); // les sous-agents de premier plan sont terminés avec le tour
+                s.BackgroundAgents = background ?? 0;
+                if (background > 0)
+                {
+                    s.AwaitingBackgroundAgents = true;
+                    SetState(s, SessionState.Working, now);
+                }
+                else
+                {
+                    s.AwaitingBackgroundAgents = false;
+                    EndTurn(s, now);
+                    SetState(s, SessionState.Done, now);
+                }
                 break;
+            }
 
             case "StopFailure":
                 EndTurn(s, now);
@@ -190,12 +219,26 @@ public sealed class SessionTracker
                 break;
 
             case "SubagentStart":
-                s.ActiveSubagents++;
+                if (p.Str("agent_id") is { Length: > 0 } startedId) s.RunningAgentIds.Add(startedId);
                 break;
 
             case "SubagentStop":
-                s.ActiveSubagents = Math.Max(0, s.ActiveSubagents - 1);
+            {
+                // Claude Code envoie aussi SubagentStop pour ses agents internes (suggestions, /btw) sans SubagentStart :
+                // on ne retire que des agents connus, au lieu de décrémenter un compteur.
+                if (p.Str("agent_id") is { Length: > 0 } stoppedId) s.RunningAgentIds.Remove(stoppedId);
+                if (CountBackgroundAgents(p) is { } background)
+                {
+                    s.BackgroundAgents = background;
+                    if (s.AwaitingBackgroundAgents && background == 0 && s.RunningAgentIds.Count == 0)
+                    {
+                        s.AwaitingBackgroundAgents = false;
+                        EndTurn(s, now);
+                        SetState(s, SessionState.Done, now);
+                    }
+                }
                 break;
+            }
 
             case "PreCompact":
                 SetState(s, SessionState.Compacting, now);
@@ -206,6 +249,34 @@ public sealed class SessionTracker
                     SetState(s, s.TurnStartedAt is null ? SessionState.Idle : SessionState.Working, now);
                 break;
         }
+    }
+
+    /// <summary>
+    /// Types de tâches d'arrière-plan qui sont du travail d'agent. Les tâches « shell » (serveur lancé en fond…),
+    /// « monitor » et « MCP task » peuvent tourner indéfiniment : elles ne gardent pas la session « au travail ».
+    /// </summary>
+    private static readonly HashSet<string> AgentTaskTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "subagent", "workflow", "teammate", "cloud session",
+    };
+
+    /// <summary>Nombre d'agents en cours d'après « background_tasks », ou null si le champ est absent.</summary>
+    internal static int? CountBackgroundAgents(JsonElement p)
+    {
+        if (!p.TryGetProperty("background_tasks", out var tasks) || tasks.ValueKind != JsonValueKind.Array) return null;
+        var count = 0;
+        foreach (var t in tasks.EnumerateArray())
+        {
+            var type = t.Str("type");
+            var status = t.Str("status");
+            var finished = status is not null &&
+                           (status.Equals("completed", StringComparison.OrdinalIgnoreCase) ||
+                            status.Equals("failed", StringComparison.OrdinalIgnoreCase) ||
+                            status.Equals("killed", StringComparison.OrdinalIgnoreCase) ||
+                            status.Equals("cancelled", StringComparison.OrdinalIgnoreCase));
+            if (type is not null && AgentTaskTypes.Contains(type) && !finished) count++;
+        }
+        return count;
     }
 
     private static void EndTurn(Session s, DateTimeOffset now)
