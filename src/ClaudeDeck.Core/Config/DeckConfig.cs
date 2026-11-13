@@ -8,7 +8,7 @@ namespace ClaudeDeck.Core.Config;
 /// <summary>Configuration persistée dans <c>%APPDATA%\ClaudeDeck\config.json</c>. Ne contient aucun secret.</summary>
 public sealed class DeckConfig
 {
-    public const int CurrentSchemaVersion = 2;
+    public const int CurrentSchemaVersion = 3;
 
     /// <summary>Version du format, pour migrer les anciens fichiers.</summary>
     public int SchemaVersion { get; set; }
@@ -109,10 +109,10 @@ public sealed class DeviceConfig
 public sealed class PlanUsageConfig
 {
     /// <summary>
-    /// Interroge en plus l'endpoint OAuth NON DOCUMENTÉ utilisé par Claude Code (/api/oauth/usage) pour avoir les jauges
-    /// même quand aucune session CLI ne tourne (ex. : extension VS Code seule). Désactivé par défaut.
+    /// Interroge en plus l'endpoint OAuth NON DOCUMENTÉ utilisé par Claude Code (/api/oauth/usage) : jauges même sans
+    /// session CLI (extension VS Code), crédits d'utilisation, réinitialisations vues aussitôt. Activé par défaut depuis v3.
     /// </summary>
-    public bool OAuthFallback { get; set; } = false;
+    public bool OAuthFallback { get; set; } = true;
     public int OAuthPollMinutes { get; set; } = 5;
     /// <summary>Âge (minutes) au-delà duquel une jauge est affichée grisée comme « ancienne ».</summary>
     public int StaleAfterMinutes { get; set; } = 30;
@@ -206,6 +206,8 @@ public sealed class ConfigStore
         if (cfg.SchemaVersion >= DeckConfig.CurrentSchemaVersion) return false;
         // v1 → v2 : animations fluides (l'ancienne valeur par défaut, 4 i/s, était trop lente pour l'astérisque).
         if (cfg.SchemaVersion < 2 && cfg.Display.AnimationFps == 4) cfg.Display.AnimationFps = 12;
+        // v2 → v3 : la source OAuth fournit les crédits d'utilisation et les réinitialisations immédiates.
+        if (cfg.SchemaVersion < 3) cfg.PlanUsage.OAuthFallback = true;
         cfg.SchemaVersion = DeckConfig.CurrentSchemaVersion;
         return true;
     }

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ClaudeDeck.Core.Rendering;
 using ClaudeDeck.Core.Usage;
 
 namespace ClaudeDeck.Tests;
@@ -144,5 +145,75 @@ public class AdminKeyTests
         var msg = UsageService.Explain(ex, "sk-ant-api03-xyz");
         Assert.Contains("invalid x-api-key", msg);
         Assert.Contains("clé personnelle", msg);
+    }
+}
+
+public class UsageCreditsTests
+{
+    private static readonly DateTimeOffset Now = new(2026, 11, 13, 10, 0, 0, TimeSpan.Zero);
+
+    [Fact]
+    public void Parses_extra_usage_in_minor_units()
+    {
+        var c = PlanUsageStore.ParseOAuthCredits(J.E(new
+        {
+            five_hour = new { utilization = 100.0 },
+            extra_usage = new { is_enabled = true, monthly_limit = 5000, used_credits = 1240.0, utilization = 24.8, currency = "EUR", decimal_places = 2 },
+        }), Now)!;
+        Assert.True(c.Enabled);
+        Assert.Equal(50m, c.MonthlyLimit);
+        Assert.Equal(12.40m, c.Used);
+        Assert.Equal(37.60m, c.Remaining);
+        Assert.Equal("EUR", c.Currency);
+        Assert.Equal(24.8, c.UsedPercent!.Value, 3);
+
+        var off = PlanUsageStore.ParseOAuthCredits(J.E(new { extra_usage = new { is_enabled = false, monthly_limit = (int?)null, used_credits = (int?)null } }), Now)!;
+        Assert.False(off.Enabled);
+        Assert.Null(off.Remaining);
+        Assert.Null(PlanUsageStore.ParseOAuthCredits(J.E(new { five_hour = new { utilization = 3 } }), Now));
+    }
+
+    [Fact]
+    public void Session_tile_shows_credit_balance_only_when_exhausted_and_enabled()
+    {
+        var b = new KeyViewBuilder(TimeZoneInfo.Utc);
+        var full = new RateWindow(100, Now.AddHours(2), Now, "statusline");
+        var credits = new UsageCredits(true, 50m, 12.40m, "EUR", Now);
+        string N(string? s) => (s ?? "").Replace(' ', ' ').Replace(' ', ' ');
+
+        Assert.Equal("37,60 €", N(b.SessionWindow(full, credits, Now).Main));
+        Assert.Equal("100 %", N(b.SessionWindow(full, credits with { Enabled = false }, Now).Main)); // crédits désactivés
+        Assert.Equal("100 %", N(b.SessionWindow(full, null, Now).Main));                            // inconnu
+        Assert.Equal("62 %", N(b.SessionWindow(full with { UsedPercent = 62 }, credits, Now).Main)); // forfait non épuisé
+        var unlimited = b.SessionWindow(full, credits with { MonthlyLimit = null }, Now);
+        Assert.Equal("12,40 €", N(unlimited.Main));
+        Assert.Equal("crédits illimités", unlimited.Sub);
+        Assert.Equal("SESSION", b.SessionWindow(full, credits, Now).Title);
+    }
+
+    [Fact]
+    public void Free_reset_seen_by_oauth_is_not_undone_by_stale_status_line()
+    {
+        var store = new PlanUsageStore();
+        var oldReset = Now.AddHours(2);
+        store.Update(new RateWindow(100, oldReset, Now, "statusline"), null);
+        // « Réinitialiser gratuitement » : OAuth voit la nouvelle fenêtre à 0 %.
+        store.Update(new RateWindow(0, Now.AddHours(5), Now.AddMinutes(1), "oauth"), null);
+        Assert.Equal(0, store.Snapshot().FiveHour!.UsedPercent);
+        // La status line renvoie encore l'ancienne fenêtre : ignorée.
+        store.Update(new RateWindow(100, oldReset, Now.AddMinutes(2), "statusline"), null);
+        Assert.Equal(0, store.Snapshot().FiveHour!.UsedPercent);
+        // Réponse suivante de Claude : nouvelle fenêtre, acceptée.
+        store.Update(new RateWindow(3, Now.AddHours(5), Now.AddMinutes(3), "statusline"), null);
+        Assert.Equal(3, store.Snapshot().FiveHour!.UsedPercent);
+    }
+
+    [Fact]
+    public void Config_v2_enables_oauth_source()
+    {
+        var cfg = new ClaudeDeck.Core.Config.DeckConfig { SchemaVersion = 2 };
+        cfg.PlanUsage.OAuthFallback = false;
+        Assert.True(ClaudeDeck.Core.Config.ConfigStore.Migrate(cfg));
+        Assert.True(cfg.PlanUsage.OAuthFallback);
     }
 }

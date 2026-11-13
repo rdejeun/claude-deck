@@ -213,6 +213,53 @@ public sealed class KeyViewBuilder
         };
     }
 
+    /// <summary>
+    /// Tuile « SESSION » : comme <see cref="PlanWindow"/>, sauf quand la session du forfait est épuisée (100 %) et que les
+    /// crédits d'utilisation sont activés : elle affiche alors le solde de crédits (reste jusqu'au plafond mensuel).
+    /// </summary>
+    public KeyView SessionWindow(RateWindow? w, UsageCredits? credits, DateTimeOffset now)
+    {
+        var plain = PlanWindow("SESSION", w, now, weekly: false);
+        if (w is null || w.HasReset(now) || w.UsedPercent < 100 || credits is not { Enabled: true } c) return plain;
+
+        var stale = now - c.ObservedAt > StaleAfter;
+        var pct = c.UsedPercent;
+        string main;
+        string? sub;
+        if (c.Remaining is { } remaining)
+        {
+            main = Money(remaining, c.Currency);
+            sub = plain.Sub; // « → 18:43 » : retour au forfait
+        }
+        else
+        {
+            // Pas de plafond mensuel : le solde n'a pas de sens, on montre la dépense du mois.
+            main = Money(c.Used ?? 0, c.Currency);
+            sub = "crédits illimités";
+        }
+        return plain with
+        {
+            Main = (stale ? "~" : "") + main,
+            Bar = pct is { } p ? Math.Clamp(p / 100.0, 0, 1) : 1,
+            BarColor = stale ? C.StaleBar : pct is null ? C.Blue : pct >= 95 ? C.Red : pct >= 90 ? C.Orange : C.Blue,
+            Sub = sub,
+        };
+    }
+
+    /// <summary>Montant dans une devise : « 37,60 € », « 37,60 $ », « 12,00 CHF ».</summary>
+    public static string Money(decimal amount, string currency)
+    {
+        var symbol = currency.ToUpperInvariant() switch
+        {
+            "EUR" => "€",
+            "USD" => "$",
+            "GBP" => "£",
+            var other => other,
+        };
+        if (amount < 0) return "−" + Money(-amount, currency);
+        return (amount >= 1000 ? amount.ToString("0", Fr) : amount.ToString("0.00", Fr)) + " " + symbol;
+    }
+
     /// <summary>Heure locale de réinitialisation ; avec le jour si ce n'est pas aujourd'hui.</summary>
     public string ResetLabel(DateTimeOffset resetsAt, DateTimeOffset now, bool weekly)
     {

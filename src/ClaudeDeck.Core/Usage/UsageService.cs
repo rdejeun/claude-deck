@@ -26,6 +26,7 @@ public sealed class UsageService : IDisposable
     private IReadOnlyList<DailyCost> _daily = [];
     private DateTimeOffset _nextApi = DateTimeOffset.MinValue;
     private DateTimeOffset _nextOAuth = DateTimeOffset.MinValue;
+    private volatile bool _forceOAuth;
     private Task? _loop;
 
     public UsageService(ConfigStore config, ISecretStore secrets, PlanUsageStore plan, HttpClient http, TimeProvider? time = null)
@@ -57,6 +58,7 @@ public sealed class UsageService : IDisposable
     {
         _nextApi = DateTimeOffset.MinValue;
         _nextOAuth = DateTimeOffset.MinValue;
+        _forceOAuth = true;
         _refreshSignal.Release();
     }
 
@@ -159,14 +161,30 @@ public sealed class UsageService : IDisposable
 
                 if (cfg.PlanUsage.OAuthFallback && now >= _nextOAuth)
                 {
-                    _nextOAuth = now + TimeSpan.FromMinutes(Math.Max(1, cfg.PlanUsage.OAuthPollMinutes));
-                    // Inutile d'interroger l'endpoint si une session CLI vient de fournir des valeurs fraîches.
+                    // Session du forfait épuisée : interrogation chaque minute, pour suivre les crédits d'utilisation
+                    // et voir aussitôt une réinitialisation (y compris « Réinitialiser gratuitement » sur claude.ai,
+                    // que la status line ne voit qu'à la réponse suivante de Claude).
+                    var plan = _plan.Snapshot();
+                    var exhausted = plan.FiveHour is { } f && f.UsedPercent >= 100 && !f.HasReset(now);
+                    _nextOAuth = now + (exhausted ? TimeSpan.FromMinutes(1) : TimeSpan.FromMinutes(Math.Max(1, cfg.PlanUsage.OAuthPollMinutes)));
+
+                    // Sinon, inutile d'interroger l'endpoint si une session CLI vient de fournir des valeurs fraîches.
                     var last = _plan.LastObservedAt;
-                    if (last is null || now - last > TimeSpan.FromMinutes(2))
+                    var force = _forceOAuth;
+                    _forceOAuth = false;
+                    if (force || exhausted || plan.Credits is null || last is null || now - last > TimeSpan.FromMinutes(2))
                     {
                         var r = await _oauth.FetchAsync(now, ct).ConfigureAwait(false);
-                        if (r is { } v) _plan.Update(v.FiveHour, v.SevenDay);
-                        else Log.Debug($"OAuth usage : {_oauth.LastError}");
+                        if (r is { } v)
+                        {
+                            _plan.Update(v.FiveHour, v.SevenDay);
+                            _plan.UpdateCredits(v.Credits);
+                        }
+                        else
+                        {
+                            Log.Debug($"OAuth usage : {_oauth.LastError}");
+                            if (_oauth.LastStatus == 429) _nextOAuth = now + TimeSpan.FromMinutes(5); // endpoint limité
+                        }
                     }
                 }
             }

@@ -24,7 +24,12 @@ public sealed class OAuthUsageClient
 
     public string? LastError { get; private set; }
 
-    public async Task<(RateWindow? FiveHour, RateWindow? SevenDay)?> FetchAsync(DateTimeOffset now, CancellationToken ct)
+    /// <summary>Code HTTP de la dernière réponse en erreur (429 = endpoint limité : espacer les appels).</summary>
+    public int? LastStatus { get; private set; }
+
+    public sealed record Result(RateWindow? FiveHour, RateWindow? SevenDay, UsageCredits? Credits);
+
+    public async Task<Result?> FetchAsync(DateTimeOffset now, CancellationToken ct)
     {
         var token = ReadAccessToken(now);
         if (token is null)
@@ -44,12 +49,17 @@ public sealed class OAuthUsageClient
             var body = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
             if (!resp.IsSuccessStatusCode)
             {
+                LastStatus = (int)resp.StatusCode;
                 LastError = $"HTTP {(int)resp.StatusCode}";
                 return null;
             }
             using var doc = JsonDocument.Parse(body);
             LastError = null;
-            return PlanUsageStore.ParseOAuth(doc.RootElement, now);
+            LastStatus = null;
+            var (five, week) = PlanUsageStore.ParseOAuth(doc.RootElement, now);
+            var credits = PlanUsageStore.ParseOAuthCredits(doc.RootElement, now);
+            if (doc.RootElement.Obj("extra_usage") is { } extra) Log.Debug($"OAuth extra_usage : {extra.GetRawText()}");
+            return new Result(five, week, credits);
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
