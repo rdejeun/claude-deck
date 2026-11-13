@@ -64,15 +64,15 @@ public sealed class SessionTracker
         {
             if (eventName == "SessionEnd")
             {
-                changed = _sessions.Remove(sessionId);
+                changed = _sessions.Remove(sessionId, out var ended);
+                if (ended is not null)
+                    Log.Info($"Fin de session {sessionId} « {ended.DisplayName} » ({payload.Str("reason") ?? "?"}) — sessions suivies : {_sessions.Count}");
             }
             else
             {
-                if (!_sessions.TryGetValue(sessionId, out var s))
-                {
-                    s = new Session(sessionId, now);
-                    _sessions[sessionId] = s;
-                }
+                var isNew = !_sessions.TryGetValue(sessionId, out var existing);
+                var s = existing ?? new Session(sessionId, now);
+                if (isNew) _sessions[sessionId] = s;
 
                 s.LastEventAt = now;
                 var cwd = payload.Str("cwd");
@@ -80,6 +80,10 @@ public sealed class SessionTracker
                 var transcript = payload.Str("transcript_path");
                 if (!string.IsNullOrEmpty(transcript)) s.TranscriptPath = transcript;
                 if (client is not null && (s.Client is null || s.Client.Pid != client.Pid)) s.Client = client;
+                if (isNew)
+                    Log.Info($"Nouvelle session {sessionId} « {s.DisplayName} » ({eventName}" +
+                             $"{(payload.Str("source") is { } src ? " " + src : "")}) cwd={s.Cwd} " +
+                             $"processus={client?.Name ?? "?"}#{client?.Pid.ToString() ?? "?"} — sessions suivies : {_sessions.Count}");
 
                 Apply(s, eventName, payload, now);
                 changed = true;
@@ -534,6 +538,8 @@ public sealed class SessionTracker
                 if (dead || now - s.LastEventAt > ForgetAfter)
                 {
                     _sessions.Remove(s.Id);
+                    Log.Info($"Session {s.Id} « {s.DisplayName} » retirée : " +
+                             (dead ? $"processus {s.Client?.Name}#{s.Client?.Pid} terminé" : "aucun événement depuis 12 h"));
                     changed = true;
                     continue;
                 }
