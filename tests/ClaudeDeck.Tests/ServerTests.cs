@@ -133,3 +133,22 @@ public sealed class ServerTests : IDisposable
         Assert.Equal(HttpStatusCode.Unauthorized, noToken.StatusCode);
     }
 }
+
+public class HookLogTests
+{
+    [Fact]
+    public void Describes_agents_and_background_tasks()
+    {
+        var line = ClaudeDeck.Core.Server.DeckApi.DescribeHook(System.Text.Json.JsonSerializer.SerializeToElement(new
+        {
+            hook_event_name = "Stop", session_id = "s1",
+            background_tasks = new[] { new { type = "subagent", status = "running" }, new { type = "shell", status = "running" } },
+        }));
+        Assert.Equal("hook Stop s1 background=[subagent:running, shell:running]", line);
+        var sub = ClaudeDeck.Core.Server.DeckApi.DescribeHook(System.Text.Json.JsonSerializer.SerializeToElement(new
+        {
+            hook_event_name = "SubagentStop", session_id = "s1", agent_id = "a1", agent_type = "",
+        }));
+        Assert.Equal("hook SubagentStop s1 agent=a1 agent_type=(interne) background=(absent)", sub);
+    }
+}

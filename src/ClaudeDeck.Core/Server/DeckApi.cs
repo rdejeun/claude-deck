@@ -107,7 +107,7 @@ public sealed class DeckApi
                 req.ConnectionItems["client"] = client;
             }
             _sessions.HandleHook(doc.RootElement, client as ClientProcess);
-            Log.Debug($"hook {doc.RootElement.Str("hook_event_name")} {doc.RootElement.Str("session_id")}");
+            Log.Debug(DescribeHook(doc.RootElement));
         }
         catch (JsonException ex)
         {
@@ -115,6 +115,28 @@ public sealed class DeckApi
         }
         // Corps vide + 200 : Claude Code continue normalement (aucune décision n'est prise).
         return HttpResponse.Empty(200);
+    }
+
+    /// <summary>Ligne de journal d'un hook : événement, session, outil, agent, tâches d'arrière-plan (diagnostic).</summary>
+    internal static string DescribeHook(JsonElement p)
+    {
+        var sb = new System.Text.StringBuilder("hook ");
+        sb.Append(p.Str("hook_event_name")).Append(' ').Append(p.Str("session_id"));
+        if (p.Str("tool_name") is { } tool) sb.Append(" tool=").Append(tool);
+        if (p.Str("notification_type") is { } nt) sb.Append(" type=").Append(nt);
+        if (p.Str("agent_id") is { } agent) sb.Append(" agent=").Append(agent);
+        if (p.Str("agent_type") is { } at) sb.Append(" agent_type=").Append(at.Length == 0 ? "(interne)" : at);
+        if (p.TryGetProperty("background_tasks", out var tasks) && tasks.ValueKind == JsonValueKind.Array)
+        {
+            sb.Append(" background=[");
+            sb.AppendJoin(", ", tasks.EnumerateArray().Select(t => $"{t.Str("type")}:{t.Str("status")}"));
+            sb.Append(']');
+        }
+        else if (p.Str("hook_event_name") is "Stop" or "SubagentStop")
+        {
+            sb.Append(" background=(absent)");
+        }
+        return sb.ToString();
     }
 
     private ClientProcess? SafeResolve(HttpRequest req)

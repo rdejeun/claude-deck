@@ -72,7 +72,7 @@ affiche la status line préexistante de l'utilisateur (exécutée via Git Bash, 
 | `Notification[elicitation_dialog \| elicitation_url_dialog \| agent_needs_input]` | → En attente (question) |
 | `PostToolUse`, `PostToolUseFailure`, `PermissionDenied` | → Travaille, plus d'outil courant |
 | `Notification[idle_prompt]` | si Travaille/Compaction → Au repos (tour interrompu par Échap, sans `Stop`) |
-| `Stop` | → Terminé, **sauf** si `background_tasks` contient encore des agents (types `subagent`, `workflow`, `teammate`, `cloud session` ; les `shell`, `monitor`, `MCP task` sont ignorés) : la session reste « au travail », chrono compris, jusqu'au `SubagentStop` qui vide la liste, au `Stop` suivant ou au rappel `idle_prompt` |
+| `Stop` | → Terminé, **sauf** s'il reste des agents : d'après `background_tasks` (types `subagent`, `workflow`, `teammate`, `cloud session` ou leurs noms internes ; `shell`, `monitor`, `MCP task` ignorés) **ou** des sous-agents démarrés (`SubagentStart`) sans `SubagentStop`. La session reste alors « au travail », chrono compris, jusqu'au `SubagentStop` du dernier agent, au `Stop` suivant ou au rappel `idle_prompt`. Un événement portant un `agent_id` après la fin du tour (activité d'un sous-agent) remet la session « au travail » et reprend le chrono du tour |
 | `StopFailure` | → Erreur |
 | `PreCompact` / `PostCompact` | → Compaction / retour à Travaille ou Au repos |
 | `SubagentStart` / `SubagentStop` | ensemble des agents en cours par `agent_id` (un `SubagentStop` d'agent interne de Claude Code, sans `SubagentStart`, est ignoré) ; `background_tasks` de `SubagentStop` met à jour les agents d'arrière-plan |

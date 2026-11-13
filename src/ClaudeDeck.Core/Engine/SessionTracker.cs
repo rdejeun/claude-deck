@@ -91,6 +91,21 @@ public sealed class SessionTracker
 
     private static void Apply(Session s, string eventName, JsonElement p, DateTimeOffset now)
     {
+        // Événement émis depuis un sous-agent (champ agent_id) : il travaille encore, même si l'agent principal a fini.
+        var agentId = p.Str("agent_id");
+        if (!string.IsNullOrEmpty(agentId) && eventName is not ("SubagentStart" or "SubagentStop"))
+        {
+            if (eventName is "Stop" or "StopFailure") return; // ne concerne pas l'agent principal
+            s.RunningAgentIds.Add(agentId);
+            if (s.State is SessionState.Done or SessionState.Idle)
+            {
+                // Le tour principal était fini : la session repasse « au travail », chrono du tour repris.
+                s.AwaitingBackgroundAgents = true;
+                s.TurnStartedAt ??= s.LastTurnStartedAt ?? now;
+                SetState(s, SessionState.Working, now);
+            }
+        }
+
         switch (eventName)
         {
             case "SessionStart":
@@ -174,6 +189,7 @@ public sealed class SessionTracker
                         {
                             s.AwaitingBackgroundAgents = false;
                             s.BackgroundAgents = 0;
+                            s.RunningAgentIds.Clear();
                             EndTurn(s, now);
                             SetState(s, SessionState.Done, now);
                         }
@@ -191,11 +207,12 @@ public sealed class SessionTracker
                 // « Stop » = l'agent principal a fini de répondre, pas forcément la fin du travail : des agents lancés
                 // en arrière-plan peuvent continuer (liste « background_tasks »). La session reste alors « au travail »
                 // et le chrono continue, jusqu'à ce que ces agents soient terminés.
+                // Deux signaux, l'un ou l'autre suffit : la liste « background_tasks » (absente de certaines versions),
+                // et les sous-agents démarrés (SubagentStart) dont on n'a pas encore reçu le SubagentStop.
                 s.CurrentTool = null;
                 var background = CountBackgroundAgents(p);
-                s.RunningAgentIds.Clear(); // les sous-agents de premier plan sont terminés avec le tour
                 s.BackgroundAgents = background ?? 0;
-                if (background > 0)
+                if (background > 0 || s.RunningAgentIds.Count > 0)
                 {
                     s.AwaitingBackgroundAgents = true;
                     SetState(s, SessionState.Working, now);
@@ -227,15 +244,13 @@ public sealed class SessionTracker
                 // Claude Code envoie aussi SubagentStop pour ses agents internes (suggestions, /btw) sans SubagentStart :
                 // on ne retire que des agents connus, au lieu de décrémenter un compteur.
                 if (p.Str("agent_id") is { Length: > 0 } stoppedId) s.RunningAgentIds.Remove(stoppedId);
-                if (CountBackgroundAgents(p) is { } background)
+                if (CountBackgroundAgents(p) is { } background) s.BackgroundAgents = background;
+                else if (s.RunningAgentIds.Count == 0) s.BackgroundAgents = 0;
+                if (s.AwaitingBackgroundAgents && s.BackgroundAgents == 0 && s.RunningAgentIds.Count == 0)
                 {
-                    s.BackgroundAgents = background;
-                    if (s.AwaitingBackgroundAgents && background == 0 && s.RunningAgentIds.Count == 0)
-                    {
-                        s.AwaitingBackgroundAgents = false;
-                        EndTurn(s, now);
-                        SetState(s, SessionState.Done, now);
-                    }
+                    s.AwaitingBackgroundAgents = false;
+                    EndTurn(s, now);
+                    SetState(s, SessionState.Done, now);
                 }
                 break;
             }
@@ -258,6 +273,8 @@ public sealed class SessionTracker
     private static readonly HashSet<string> AgentTaskTypes = new(StringComparer.OrdinalIgnoreCase)
     {
         "subagent", "workflow", "teammate", "cloud session",
+        // Noms internes, quand Claude Code ne connaît pas de libellé.
+        "local_agent", "local_workflow", "in_process_teammate", "remote_agent",
     };
 
     /// <summary>Nombre d'agents en cours d'après « background_tasks », ou null si le champ est absent.</summary>
@@ -281,7 +298,11 @@ public sealed class SessionTracker
 
     private static void EndTurn(Session s, DateTimeOffset now)
     {
-        if (s.TurnStartedAt is { } start) s.LastTurnDuration = now - start;
+        if (s.TurnStartedAt is { } start)
+        {
+            s.LastTurnDuration = now - start;
+            s.LastTurnStartedAt = start;
+        }
         s.TurnStartedAt = null;
         s.CurrentTool = null;
     }

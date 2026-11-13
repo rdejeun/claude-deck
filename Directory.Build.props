@@ -4,7 +4,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
-    <Version>0.5.2</Version>
+    <Version>0.5.3</Version>
     <Authors>rdejeun</Authors>
     <Product>ClaudeDeck</Product>
     <Copyright>MIT</Copyright>

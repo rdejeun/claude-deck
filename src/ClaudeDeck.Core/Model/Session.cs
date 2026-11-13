@@ -64,6 +64,9 @@ public sealed class Session
     /// <summary>Agents encore en cours en arrière-plan d'après le dernier Stop / SubagentStop (« background_tasks »).</summary>
     public int BackgroundAgents { get; set; }
 
+    /// <summary>Début du dernier tour terminé (pour reprendre le chrono si un sous-agent se manifeste après la fin du tour).</summary>
+    public DateTimeOffset? LastTurnStartedAt { get; set; }
+
     /// <summary>L'agent principal a fini son tour (Stop) mais des agents travaillent encore en arrière-plan.</summary>
     public bool AwaitingBackgroundAgents { get; set; }
 

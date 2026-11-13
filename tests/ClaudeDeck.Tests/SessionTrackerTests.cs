@@ -172,6 +172,45 @@ public class SessionTrackerTests
     }
 
     [Fact]
+    public void Subagent_still_running_without_background_list_keeps_working()
+    {
+        // Version de Claude Code sans « background_tasks » : le SubagentStart sans SubagentStop suffit.
+        var t = NewTracker();
+        t.HandleHook(J.Hook("a", "UserPromptSubmit"));
+        t.HandleHook(J.Hook("a", "SubagentStart", new { agent_id = "tests", agent_type = "test-runner" }));
+        t.HandleHook(J.Hook("a", "Stop"));
+        Assert.Equal(SessionState.Working, Only(t).State);
+        Assert.NotNull(Only(t).TurnStartedAt);
+        t.HandleHook(J.Hook("a", "SubagentStop", new { agent_id = "tests", agent_type = "test-runner" }));
+        Assert.Equal(SessionState.Done, Only(t).State);
+    }
+
+    [Fact]
+    public void Subagent_activity_after_stop_revives_the_session()
+    {
+        // SubagentStart manqué (daemon relancé, version ancienne) : l'activité du sous-agent suffit à revenir au travail.
+        var time = new FakeTime();
+        var t = new SessionTracker(time);
+        t.HandleHook(J.Hook("a", "UserPromptSubmit"));
+        var start = Only(t).TurnStartedAt;
+        time.Advance(TimeSpan.FromMinutes(2));
+        t.HandleHook(J.Hook("a", "Stop", new { background_tasks = Array.Empty<object>() }));
+        Assert.Equal(SessionState.Done, Only(t).State);
+
+        time.Advance(TimeSpan.FromMinutes(1));
+        t.HandleHook(J.Hook("a", "PostToolUse", new { tool_name = "Bash", agent_id = "tests", agent_type = "test-runner" }));
+        Assert.Equal(SessionState.Working, Only(t).State);
+        Assert.Equal(start, Only(t).TurnStartedAt); // chrono du tour repris, pas remis à zéro
+
+        // Un « Stop » portant un agent_id ne termine pas la session.
+        t.HandleHook(J.Hook("a", "Stop", new { agent_id = "tests" }));
+        Assert.Equal(SessionState.Working, Only(t).State);
+
+        t.HandleHook(J.Hook("a", "SubagentStop", new { agent_id = "tests", agent_type = "test-runner" }));
+        Assert.Equal(SessionState.Done, Only(t).State);
+    }
+
+    [Fact]
     public void Idle_prompt_while_awaiting_background_means_done()
     {
         var t = NewTracker();
